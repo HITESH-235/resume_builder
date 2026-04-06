@@ -15,10 +15,10 @@ class User(db.Model):
     profile = db.relationship('Profile', backref='user', uselist=False) # one to one link
     # useList (def=True) assumes every relation to be one to many, hence change it
 
-def set_password(self, password):
-    self.password_hash = generate_password_hash(password)
-def check_password(self, password):
-    return check_password_hash(self.password_hash, password)
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
 
 # Many to Many rel: (Profile - Skills) (Raw table rather than a model class)
@@ -30,8 +30,8 @@ profile_skills = db.Table('profile_skills',
 
 class Profile(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-
     id = db.Column(db.Integer, primary_key=True)
+
     full_name = db.Column(db.String(100))
     bio = db.Column(db.Text)
 

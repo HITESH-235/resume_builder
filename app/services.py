@@ -16,11 +16,10 @@ class ProfileService:
     def add_experience(user_id, data):
 
         # fetch current profiles
-        user = User.query.get(user_id)
-        if not user: return {"error":"Profile not found"}, 404
-        profile = user.profile
+        user = User.query.get(int(user_id))
+        if not user or not user.profile: return {"error":"Profile not found"}, 404
 
-        existing_intervals = [(exp.start_date, exp.end_date) for exp in profile.experiences]
+        existing_intervals = [(exp.start_date, exp.end_date) for exp in user.profile.experiences]
 
         try: # schemas checks date but format could still be different
             start_date = datetime.strptime(data["start_date"], '%Y-%m-%d').date()
@@ -34,7 +33,7 @@ class ProfileService:
             return {"error":"Experience dates overlap with existing records"}, 400
 
         new_exp = Experience(
-            profile_id = profile.id,
+            profile_id = user.profile.id,
             company = data["company"],
             role = data["role"],
             start_date = start_date,
@@ -42,12 +41,17 @@ class ProfileService:
         )
 
         db.session.add(new_exp)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback() # undo the current transaction
+            return {"error": "Database error"}, 500
         return {"message":"Experience added successfully"}, 201
+
 
     @staticmethod
     def get_user_experience(user_id):
-        user = User.query.get(user_id)
+        user = User.query.get(int(user_id))
         if not user or not user.profile:
             return {"error":"Profile not found"}, 404
 
@@ -62,8 +66,39 @@ class ProfileService:
             })
         return {"experiences":experiences}, 200
 
+
     @staticmethod
-    def 
+    def get_profile(user_id):
+        user = User.query.get(int(user_id))
+        if not user or not user.profile:
+            return {"error":"Profile not found"}, 404
+        
+        return {
+            "full_name":user.profile.full_name,
+            "bio":user.profile.bio,
+            "email":user.email # since profile does not have email
+        }, 200
+    
+
+    @staticmethod
+    def update_profile(user_id, data):
+        user = User.query.get(int(user_id))
+        if not user or not user.profile:
+            return {"error":"Profile not found"}, 404
+        
+        if "full_name" in data:
+            user.profile.full_name = data["full_name"]
+        if "bio" in data:
+            user.profile.bio = data["bio"]
+
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            return {"error":"Database error"}, 500
+        
+        return {"message":"Profile updated successfully"}, 200
+
 
 
 class AuthService:
@@ -75,20 +110,29 @@ class AuthService:
         
         new_user = User(email=data['email'])
         new_user.set_password(data['password'])
+
+        # the user and profile creation must be checked both before committing, so:
+
         db.session.add(new_user)
-        db.session.commit()
+        db.session.flush() # sends the transaction but does not commit
 
         new_profile = Profile(
             user_id=new_user.id,
             full_name=data.get('full_name','New User') # set default name if not given
         )
         db.session.add(new_profile)
-        db.session.commit()
+
+        try:
+            db.session.commit() # put final commit only after checking both user and profile transac.
+        except Exception:
+            db.session.rollback()
+            return {"error":"Database error"}, 500
 
         return {
             "message":"User registered successfully",
             "user_id":new_user.id
         }, 201
+
 
     @staticmethod
     def login_user(data):

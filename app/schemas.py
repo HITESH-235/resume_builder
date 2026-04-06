@@ -6,6 +6,7 @@ class UserRegistrationSchema(Schema):
     email = fields.Email(required=True) # if the check goes right, 
     # .Str() check for string with non nullable and min length is set by validate.Length()
     password = fields.Str(required=True, validate=validate.Length(min=8))
+    full_name = fields.Str(required=False)
 
 
 # same as registration, with less checks as goes for password check only
@@ -18,9 +19,12 @@ class ExperienceSchema(Schema):
     company = fields.Str(required=True)
     role = fields.Str(required=True)
 
-    start_date = fields.Date(required=True) # automatically *turns string into date object*
+    start_date = fields.Date(required=True)
     end_date = fields.Date(allow_none=True) # nullable = allowed
 
+class ProfileUpdateSchema(Schema):
+    full_name = fields.String(required=False)
+    bio = fields.String(required=False)
 
 
 # Alternate (Explicit) way to check validity of data:
