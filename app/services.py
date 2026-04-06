@@ -65,7 +65,22 @@ class ProfileService:
                 "end_date":exp.end_date.strftime('%Y-%m-%d') if exp.end_date else "Present" # since null allowed
             })
         return {"experiences":experiences}, 200
+    
 
+    @staticmethod
+    def delete_experience(user_id, exp_id):
+        user = User.query.get(user_id)
+        if not user or not user.profile:
+            return {"error":"Experience not found"}, 404
+        
+        exp = Experience.query.get(exp_id)
+        if not exp or exp.profile_id != user.profile.id:
+            return {"error":"Experience not found"}, 404
+
+        db.session.delete(exp)
+        db.session.commit()
+
+        return {"message":"Experience deleted succesfullly"}, 200
 
     @staticmethod
     def get_profile(user_id):

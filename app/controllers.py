@@ -63,6 +63,13 @@ class ProfileController:
         user_id = get_jwt_identity()
         response, status = ProfileService.get_user_experience(user_id)
         return jsonify(response), status
+    
+
+    @staticmethod
+    def delete_experience(exp_id):
+        user_id = get_jwt_identity()
+        response, status = ProfileService.delete_experience(user_id, exp_id)
+        return jsonify(response), status
 
 
     @staticmethod
