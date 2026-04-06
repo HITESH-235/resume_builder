@@ -1,7 +1,7 @@
 from flask import request, jsonify
 from flask_jwt_extended import get_jwt_identity
 from .services import AuthService, ProfileService
-from .schemas import UserRegistrationSchema, LoginSchema, ExperienceSchema, ProfileUpdateSchema
+from .schemas import UserRegistrationSchema, LoginSchema, ExperienceSchema, ExperienceUpdateSchema, ProfileUpdateSchema
 
 
 
@@ -66,6 +66,19 @@ class ProfileController:
     
 
     @staticmethod
+    def update_experience(exp_id):
+        user_id = get_jwt_identity()
+        data = request.get_json()
+        if not data: return jsonify({"errors":"Invalid JSON"}), 400
+
+        errors = ExperienceUpdateSchema().validate(data)
+        if errors: return jsonify({"status":"error", "errors":errors}), 400
+
+        response, status = ProfileService.update_experience(user_id, exp_id, data)
+        return jsonify(response), status
+
+
+    @staticmethod
     def delete_experience(exp_id):
         user_id = get_jwt_identity()
         response, status = ProfileService.delete_experience(user_id, exp_id)
@@ -80,7 +93,8 @@ class ProfileController:
 
         response, status = ProfileService.update_profile(user_id, data)
         return jsonify(response), status
-    
+
+
     @staticmethod
     def get_profile():
         user_id = get_jwt_identity()

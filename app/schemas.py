@@ -22,6 +22,15 @@ class ExperienceSchema(Schema):
     start_date = fields.Date(required=True)
     end_date = fields.Date(allow_none=True) # nullable = allowed
 
+
+# separate class for checking errors for data for updation (put req = False)
+class ExperienceUpdateSchema(Schema):
+    company = fields.Str(required=False)
+    role = fields.Str(required=False)
+    start_date = fields.Date(required=False)
+    end_date = fields.Date(allow_none=True, required=False)
+
+
 class ProfileUpdateSchema(Schema):
     full_name = fields.String(required=False)
     bio = fields.String(required=False)

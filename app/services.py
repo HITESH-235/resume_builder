@@ -68,6 +68,64 @@ class ProfileService:
     
 
     @staticmethod
+    def update_experience(user_id, exp_id, data):
+        # check if user/profile exists:
+        user = User.query.get(user_id)
+        if not user or not user.profile:
+            return {"error":"Profile not found"}, 404
+        
+        # check if exp exists and the profile id and exp's foreign key of profile id matches:
+        exp = Experience.query.get(exp_id)
+        if not exp or exp.profile_id != user.profile.id:
+            return {"error":"Experience not found"}, 404
+
+        # check if data has new dates to set:
+        try: # prevents wrong format and start_date put to null, 
+            if "start_date" in data:
+                if data["start_date"] is None: return {"error":"start_date can't be null"}, 400
+                new_start_date = datetime.strptime(data["start_date"], "%Y-%m-%d").date()
+            else: new_start_date = exp.start_date
+
+            if "end_date" in data:
+                new_end_date = datetime.strptime(data["end_date"], "%Y-%m-%d").date() if data.get("end_date") else None # set to none if data says so
+            else: new_end_date = exp.end_date
+
+        except ValueError:
+            return {"error":"Invalid date format (YYYY-MM-DD)"}, 400
+
+        # check overlapping of new dates:
+        if "start_date" in data or "end_date" in data:
+            other_intervals = [
+                (e.start_date, e.end_date)
+                for e in user.profile.experiences
+                if e.id != exp.id # done include the current updating experience
+            ]
+            other_intervals.append((new_start_date, new_end_date))
+            if check_date_overlap(other_intervals):
+                return {"error":"New dates overlap with existing records"}, 400
+            
+            # update the two finally:
+            exp.start_date = new_start_date
+            exp.end_date = new_end_date
+        
+        if "company" in data: exp.company = data["company"]
+        if "role" in data: exp.role = data["role"]
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback() # undo the current transaction
+            return {"error": "Database error"}, 500
+
+        return {"message":"Experience updated succesfullly", 
+                "experience":{ # for debugging only
+                    "company":exp.company,
+                    "role":exp.role,
+                    "start_date":exp.start_date.strftime("%Y-%m-%d"),
+                    "end_date":exp.end_date.strftime("%Y-%m-%d") if exp.end_date else None
+                }}, 200
+
+
+    @staticmethod
     def delete_experience(user_id, exp_id):
         user = User.query.get(user_id)
         if not user or not user.profile:
@@ -81,6 +139,7 @@ class ProfileService:
         db.session.commit()
 
         return {"message":"Experience deleted succesfullly"}, 200
+
 
     @staticmethod
     def get_profile(user_id):

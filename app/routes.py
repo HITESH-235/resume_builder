@@ -12,7 +12,7 @@ auth_bp.route('/login', methods=["POST"])(AuthController.login)
 profile_bp = Blueprint('profile', __name__)
 
 
-# Routes for *adding, *fetching(all), *deleting(exp_id) EXPeriences:
+# Routes for *adding, *fetching(all), *updating(exp_id), *deleting(exp_id) EXPeriences:
 
 @profile_bp.route('/experience', methods=["POST"]) # adding new exp
 @jwt_required()
@@ -24,9 +24,14 @@ def add_exp():
 def get_exp():
     return ProfileController.get_experience()
 
+@profile_bp.route('/experience/<int:exp_id>', methods=["PUT"])
+@jwt_required()
+def update_exp(exp_id):
+    return ProfileController.update_experience(exp_id)
+
 @profile_bp.route('/experience/<int:exp_id>', methods=["DELETE"])
 @jwt_required()
-def delete(exp_id):
+def delete_exp(exp_id):
     return ProfileController.delete_experience(exp_id)
 
 

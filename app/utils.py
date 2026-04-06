@@ -15,7 +15,10 @@ def check_date_overlap(intervals: List[Tuple[date, date|None]]) -> bool:
         prev_start, prev_end = intervals[i-1]
         curr_start, curr_end = intervals[i]
 
-        if prev_end is None: continue
+        # if prev_end is not None and prev_start > prev_end: return True # later put this check into schema
+        # if curr_end is not None and curr_start > curr_end: return True
+
+        if prev_end is None: return True
         if curr_start < prev_end: return True
 
     return False
