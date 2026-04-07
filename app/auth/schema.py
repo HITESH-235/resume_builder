@@ -15,27 +15,6 @@ class LoginSchema(Schema):
     password = fields.Str(required=True)
 
 
-class ExperienceSchema(Schema):
-    company = fields.Str(required=True)
-    role = fields.Str(required=True)
-
-    start_date = fields.Date(required=True)
-    end_date = fields.Date(allow_none=True) # nullable = allowed
-
-
-# separate class for checking errors for data for updation (put req = False)
-class ExperienceUpdateSchema(Schema):
-    company = fields.Str(required=False)
-    role = fields.Str(required=False)
-    start_date = fields.Date(required=False)
-    end_date = fields.Date(allow_none=True, required=False)
-
-
-class ProfileUpdateSchema(Schema):
-    full_name = fields.String(required=False)
-    bio = fields.String(required=False)
-
-
 # Alternate (Explicit) way to check validity of data:
 
 # import re # 'regular expression' to check an email
@@ -59,23 +38,4 @@ class ProfileUpdateSchema(Schema):
 #         elif len(password) < 8:
 #             errors['password'] = 'Passowrd must be atleast 8 characters'
 
-#         return errors
-    
-# class ExperienceSchema2:
-#     @staticmethod
-#     def validate(data):
-#         errors = {}
-
-#         if not data.get('company'):
-#             errors['company'] = "Company name is required"
-#         if not data.get('role'):
-#             errors['role'] = "Role is required"
-#         start_date = data.get("start_date")
-#         if not start_date:
-#             errors["start_date"] = "Start date is required"
-#         else: 
-#             try:
-#                 datetime.strptime(start_date, "%Y-%m-%d")
-#             except (ValueError, TypeError):
-#                 errors["start_date"] = "Invalid date format, use YYYY-MM-DD"
 #         return errors

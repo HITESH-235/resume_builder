@@ -1,7 +1,6 @@
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from flask_jwt_extended import JWTManager
-from .models import db
+from .extensions.db import db
+from .extensions.jwt import jwt
 
 
 def create_app():
@@ -10,12 +9,13 @@ def create_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = 'sqlite:///resume.db' 
     # didnt give the abs path, so creates insider instance folder
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["JWT_SECRET_KEY"] = '47-secret-key'    
+    app.config["JWT_SECRET_KEY"] = '47-secret-key' 
 
     db.init_app(app)
-    jwt = JWTManager(app)
+    jwt.init_app(app)
 
-    from .routes import auth_bp, profile_bp # registering blueprints:
+    from app.auth.routes import auth_bp
+    from app.profile.routes import profile_bp
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(profile_bp, url_prefix='/profile')
 
