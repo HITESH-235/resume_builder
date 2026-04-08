@@ -1,5 +1,5 @@
 from datetime import datetime
-from app.models import User, Experience # profile is not used but for safety its imported
+from app.models import User, Experience, Skill # profile is not used but for safety its imported
 # (otherwise user has backref to profile)
 from app.utils.date_utils import check_date_overlap
 from app.extensions.db import db
@@ -7,6 +7,43 @@ from app.extensions.db import db
 
 class ProfileService:
 
+    @staticmethod
+    def add_skills(user_id, data):
+        user = User.query.get(user_id)
+        if not user or not user.profile:
+            return {"error":"Profile not found"}, 404
+        
+        profile = user.profile
+
+        skills_input = data.get("skills")
+
+        # check is skills_input is not null and is a list (must be a list)
+        if not isinstance(skills_input, list): # equiv. to type(skills_input) == list
+            return {"error":"Skills must be a list"}, 400
+        
+        added_skills = []
+        for skill_name in skills_input:
+            # check if not an empty string:
+            if not isinstance(skill_name, str) or not skill_name.strip(): continue
+
+            normalised = skill_name.strip().lower()
+            skill = Skill.query.filter_by(name=normalised).first()
+
+            if not skill:
+                skill = Skill(name=normalised)
+                db.session.add(skill)
+
+            if skill not in profile.skills:
+                profile.skills.append(skill)
+                added_skills.append(normalised)
+
+        db.session.commit()
+
+        return {
+            "message": "Skills processed", # not "added"
+            "added": added_skills # does not show ones that already existed
+        }, 200
+        
 # --------------------------------------------------------------------------------------------------------------
     @staticmethod
     def add_experience(user_id, data):

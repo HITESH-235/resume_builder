@@ -6,6 +6,18 @@ from .service import ProfileService
 
 class ProfileController:
 
+    @staticmethod
+    def add_skills():
+        user_id = get_jwt_identity()
+        data = request.get_json()
+
+        if not data:
+            return jsonify({"error":"Invalid JSON"}), 400
+        
+        response,status = ProfileService.add_skills(user_id, data)
+        return jsonify(response), status
+
+
 
     @staticmethod
     def add_experience():

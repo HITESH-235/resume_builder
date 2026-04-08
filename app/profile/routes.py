@@ -42,3 +42,9 @@ def update_exp(exp_id):
 @jwt_required()
 def delete_exp(exp_id):
     return ProfileController.delete_experience(exp_id)
+
+
+@profile_bp.route('/skills', methods=["POST"])
+@jwt_required()
+def add_skills():
+    return ProfileController.add_skills()
