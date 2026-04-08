@@ -7,7 +7,7 @@ from app.extensions.db import db
 
 class ProfileService:
 
-    # Functions to add new Experiences
+# --------------------------------------------------------------------------------------------------------------
     @staticmethod
     def add_experience(user_id, data):
 
@@ -132,7 +132,7 @@ class ProfileService:
         
         return {"message":"Experience deleted successfullly"}, 200
 
-
+# --------------------------------------------------------------------------------------------------------------
     @staticmethod
     def get_profile(user_id):
         user = User.query.get(user_id)
@@ -167,3 +167,44 @@ class ProfileService:
             return {"error":"Database error"}, 500
         
         return {"message":"Profile updated successfully"}, 200
+    
+
+    @staticmethod
+    def get_full_profile(user_id):
+        user = User.query.get(user_id)
+        if not user or not user.profile:
+            return {"error":"Profile not found"}, 404
+        
+        profile = user.profile
+        profile_data = {
+            "id": profile.id,
+            "full_name": profile.full_name, 
+            "email": user.email,
+            "bio": profile.bio
+        }
+
+        experiences = sorted( # sorting list of experiences by start data (asc)
+            profile.experiences, 
+            key=lambda x: x.start_date
+        )
+        experiences_data = [
+            {
+                "id": exp.id,
+                "company": exp.company,
+                "role": exp.role,
+                "start_date": exp.start_date.strftime('%Y-%m-%d'),
+                "end_date": exp.end_date.strftime('%Y-%m-%d') if exp.end_date else None
+            }
+            for exp in experiences
+        ]
+
+        skills_data = [skill.name for skill in profile.skills]
+
+        return {
+            "status": "success",
+            "data": {
+                "profile": profile_data,
+                "experiences": experiences_data,
+                "skills": skills_data
+            }
+        }, 200

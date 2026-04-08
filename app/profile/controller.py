@@ -63,3 +63,9 @@ class ProfileController:
         
         response, status = ProfileService.update_profile(user_id, data)
         return jsonify(response), status
+    
+    @staticmethod
+    def get_full_profile():
+        user_id = int(get_jwt_identity())
+        response, status = ProfileService.get_full_profile(user_id)
+        return jsonify(response), status

@@ -16,6 +16,11 @@ def get_profile():
 def update_profile():
     return ProfileController.update_profile()
 
+@profile_bp.route('/full', methods=["GET"])
+@jwt_required()
+def get_full_profile():
+    return ProfileController.get_full_profile()
+
 
 # Routes for *adding, *fetching(all), *updating(exp_id), *deleting(exp_id) EXPeriences:
 @profile_bp.route('/experience', methods=["POST"])
