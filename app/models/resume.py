@@ -63,7 +63,7 @@ class ResumeExperience(db.Model):
 
     # restricts duplicate combination of order and resume id
     __table_args__ = (
-        db.UniqueConstraint("resume_id", "order", name="uq_resume_exp_order")
+        db.UniqueConstraint("resume_id", "order", name="uq_resume_exp_order"),
     )
 
 
@@ -87,5 +87,5 @@ class ResumeSkill(db.Model):  # moved out (not nested)
     skill = db.relationship("Skill", backref="resume_links")
 
     __table_args__ = (
-        db.UniqueConstraint("resume_id", "order", name="uq_resume_skill_order")
+        db.UniqueConstraint("resume_id", "order", name="uq_resume_skill_order"),
     )

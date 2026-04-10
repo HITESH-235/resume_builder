@@ -88,15 +88,42 @@ class ResumeService:
         # map for experience_id:item to link update order for each experience_id using the item
         id_to_assoc = {a.experience_id: a for a in associations}
 
+        for assoc in associations:
+            assoc.order += 1000 # change all orders temporarily so that temporary duplicate pairs arent created while reordering
+        db.session.flush()
+
         for new_order, exp_id in enumerate(ordered_experience_ids): # the index in give list rep. new order
             id_to_assoc[exp_id].order = new_order
 
         db.session.commit()
         return {"message": "Experiences reordered"}, 200
+
     
+    @staticmethod
+    def remove_experience_from_resume(user_id, resume_id, experience_id):
+        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+        if not resume: return {"error": "Resume not found"}, 404
+
+        assoc = ResumeExperience.query.filter_by(
+            experience_id = experience_id, 
+            resume_id=resume_id
+        ).first() # the single row from joint table rep. the experience to be deleted
+
+        if not assoc: return {"error":"Experience not in resume"}, 404
+
+        removed_order = assoc.order # decrement by 1 to all orders bigger than this
+
+        db.session.delete(assoc)
+        remaining = ResumeExperience.query.filter_by(resume_id=resume_id).all()
+        for item in remaining:
+            if item.order > removed_order: item.order -= 1
+
+        db.session.commit()
+        return {"message":"Experience removed"}, 200
+
 
     @staticmethod # same logic as in add_experience_to_resume
-    def add_skills_to_resume(user_id, resume_id, skill_id, order):
+    def add_skill_to_resume(user_id, resume_id, skill_id, order):
         # check resume exists
         resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
         if not resume: return {"error":"Resume not found"}, 404
@@ -154,8 +181,49 @@ class ResumeService:
         # map for skill_id:item to link update order for each skill_id using the item
         id_to_assoc = {a.skill_id: a for a in associations}
 
+        for assoc in associations:
+            assoc.order += 1000
+        db.session.flush()
+
         for new_order, skill_id in enumerate(ordered_skill_ids): # the index in give list rep. new order
             id_to_assoc[skill_id].order = new_order
 
         db.session.commit()
         return {"message": "Skills Reordered"}, 200
+    
+
+    @staticmethod
+    def remove_skill_from_resume(user_id, resume_id, skill_id):
+        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+        if not resume: return {"error": "Resume not found"}, 404
+
+        assoc = ResumeSkill.query.filter_by(
+            skill_id = skill_id, 
+            resume_id=resume_id
+        ).first() # the single row from joint table rep. the experience to be deleted
+
+        if not assoc: return {"error":"Skill not in resume"}, 404
+
+        removed_order = assoc.order # decrement by 1 to all orders bigger than this
+
+        db.session.delete(assoc)
+        remaining = ResumeSkill.query.filter_by(resume_id=resume_id).all()
+        for item in remaining:
+            if item.order > removed_order: item.order -= 1
+
+        db.session.commit()
+        return {"message":"Skill removed"}, 200
+    
+
+    @staticmethod
+    def update_resume(user_id, resume_id, data):
+        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+        if not resume: return {"error":"Resume not found"}, 404
+
+        if "title" in data:
+            resume.title = data["title"]
+        if "summary" in data:
+            resume.summary = data["summary"]
+
+        db.session.commit()
+        return {"message":"Resume updated"}, 200

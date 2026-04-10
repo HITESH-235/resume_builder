@@ -1,6 +1,6 @@
 from flask import request, jsonify
 from flask_jwt_extended import get_jwt_identity 
-from .schema import ExperienceSchema, ExperienceUpdateSchema, ProfileUpdateSchema
+from .schema import ExperienceSchema, ExperienceUpdateSchema, ProfileUpdateSchema, SkillSchema
 from .service import ProfileService
 
 
@@ -10,10 +10,11 @@ class ProfileController:
     def add_skills():
         user_id = get_jwt_identity()
         data = request.get_json()
+        if not data: return jsonify({"error":"Invalid JSON"}), 400
 
-        if not data:
-            return jsonify({"error":"Invalid JSON"}), 400
-        
+        errors = SkillSchema().validate(data)
+        if errors: return jsonify({"status":"error", "errors":errors}), 400
+
         response,status = ProfileService.add_skills(user_id, data)
         return jsonify(response), status
 

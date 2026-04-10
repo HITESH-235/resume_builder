@@ -16,8 +16,11 @@ def create_app():
 
     from app.auth.routes import auth_bp
     from app.profile.routes import profile_bp
+    from app.resume.routes import resume_bp
+    
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(profile_bp, url_prefix='/profile')
+    app.register_blueprint(resume_bp, url_prefix="/resume")
 
     with app.app_context():
         db.create_all()

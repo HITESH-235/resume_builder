@@ -47,3 +47,6 @@ class ExperienceUpdateSchema(Schema):
     def validate_at_least_one(self, data, **kwargs):
         if not data:
             raise ValidationError("At least one field must be provided")
+        
+class SkillSchema(Schema):
+    skills = fields.List(fields.Str(validate=validate.Length(min=1)), required=True, validate=validate.Length(min=1))
