@@ -5,7 +5,8 @@ from .schema import (
     ResumeCreateSchema, 
     AddExperienceSchema, 
     AddSkillSchema, 
-    ReorderSchema
+    ReorderSchema,
+    UpdateResumeSchema
 )
 
 class ResumeController:
@@ -17,7 +18,7 @@ class ResumeController:
 
         errors = ResumeCreateSchema().validate(data)
         if errors:
-            return jsonify({"error":errors}), 400
+            return jsonify({"status": "error", "errors": errors}), 400
         response, status = ResumeService.create_resume(user_id, data)
         return jsonify(response), status
     
@@ -64,7 +65,7 @@ class ResumeController:
         data = request.get_json() # will contain exp id, and order which user indirectly sets
 
         errors = AddExperienceSchema().validate(data)
-        if errors: return jsonify({"error":errors}), 400
+        if errors: return jsonify({"status": "error", "errors": errors}), 400
 
         # since user chooses an exp from frontend hence it comes as request body only, same with order
         response, status = ResumeService.add_experience_to_resume(
@@ -79,7 +80,7 @@ class ResumeController:
         data = request.get_json()
 
         errors = ReorderSchema().validate(data) # check if given data is an integer list
-        if errors: return jsonify({"error":errors}), 400
+        if errors: return jsonify({"status": "error", "errors": errors}), 400
 
         response, status = ResumeService.reorder_experiences(
             user_id, resume_id, data["ordered_ids"]
@@ -103,7 +104,7 @@ class ResumeController:
         data = request.get_json()
 
         errors = AddSkillSchema().validate(data)
-        if errors: return jsonify({"error":errors}), 400
+        if errors: return jsonify({"status": "error", "errors": errors}), 400
 
         response, status = ResumeService.add_skill_to_resume(user_id, resume_id, data["skill_id"], data["order"])
         return jsonify(response), status
@@ -115,7 +116,7 @@ class ResumeController:
         data = request.get_json()
 
         errors = ReorderSchema().validate(data)
-        if errors: return jsonify({"error":errors}), 400
+        if errors: return jsonify({"status": "error", "errors": errors}), 400
 
         response, status = ResumeService.reorder_skills(user_id, resume_id, data["ordered_ids"])
         return jsonify(response), status
@@ -135,6 +136,9 @@ class ResumeController:
         user_id = int(get_jwt_identity())
         data = request.get_json()
         if not data: return jsonify({"error":"Invalid JSON"}), 400
+
+        errors = UpdateResumeSchema().validate(data)
+        if errors: return {"status":"error", "errors":errors}, 400
 
         response, status = ResumeService.update_resume(user_id, resume_id, data)
         return jsonify(response), status

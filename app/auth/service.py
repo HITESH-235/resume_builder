@@ -1,4 +1,4 @@
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, create_refresh_token
 from app.extensions.db import db
 
 # both are valid since init in models has everything
@@ -45,7 +45,12 @@ class AuthService:
 
         # should have email id and correct password
         if user and user.check_password(data['password']):
-            access_token = create_access_token(identity=str(user.id)) # important to keep string    
-            return {"access_token":access_token}, 200
+            access_token = create_access_token(identity=str(user.id))
+            refresh_token = create_refresh_token(identity=str(user.id))
+
+            return {
+                "access_token": access_token,
+                "refresh_token": refresh_token
+            }, 200
         
         return {"error":"Invalid email or password"}, 401

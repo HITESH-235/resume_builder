@@ -53,6 +53,8 @@ def reorder_skills(resume_id):
 def remove_skill_from_resume(resume_id, skill_id):
     return ResumeController.remove_skill_from_resume(resume_id, skill_id)
 
+
+# update resume
 @resume_bp.route('/<int:resume_id>', methods=["PUT"])
 @jwt_required()
 def update_resume(resume_id):

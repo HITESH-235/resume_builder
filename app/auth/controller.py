@@ -1,10 +1,18 @@
 from flask import request, jsonify
 from .service import AuthService
 from .schema import UserRegistrationSchema, LoginSchema
+from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token
 
 
 
 class AuthController:
+
+    @staticmethod
+    @jwt_required(refresh=True)
+    def refresh():
+        user_id = get_jwt_identity()
+        new_access_token = create_access_token(identity=user_id)
+        return {"access_token": new_access_token}, 200
 
     @staticmethod
     def signup():

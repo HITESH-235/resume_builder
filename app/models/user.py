@@ -10,6 +10,8 @@ class User(db.Model):
     profile = db.relationship('Profile', backref='user', uselist=False) # one to one link
     # useList (def=True) assumes every relation to be one to many, hence change it
 
+    job_descriptions = db.relationship('JobDescription', backref='user', lazy=True)
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
     def check_password(self, password):

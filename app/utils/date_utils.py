@@ -12,7 +12,7 @@ def check_date_overlap(intervals: List[Tuple[date, date|None]]) -> bool:
         if prev_end is not None and prev_start > prev_end: return True # schmea checks this already (for safety)
         if curr_end is not None and curr_start > curr_end: return True
 
-        if prev_end is None: continue 
+        if prev_end is None: continue
         if curr_start < prev_end: return True
 
     return False

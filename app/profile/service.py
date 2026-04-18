@@ -35,7 +35,7 @@ class ProfileService:
 
             if skill not in profile.skills:
                 profile.skills.append(skill)
-                added_skills.append(normalised)
+                added_skills.append(normalised) # for debugging
 
         db.session.commit()
 
