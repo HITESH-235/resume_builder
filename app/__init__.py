@@ -41,15 +41,21 @@ def create_app():
     app.register_blueprint(resume_bp, url_prefix="/api/resume")
     app.register_blueprint(jd_bp, url_prefix="/api/jd")
 
-    # Serve the React app index for any non-API routes
-    # This enables client-side routing in React
-    @app.route('/', defaults={'path': ''})
-    @app.route('/<path:path>')
-    def serve(path):
-        if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
-            return app.send_static_file(path)
-        else:
-            return app.send_static_file('index.html')
+    # Serve the React app index at the root
+    @app.route('/')
+    def index():
+        return app.send_static_file('index.html')
+
+    # Catch-all for React client-side routing (handles page refreshes on non-root URLs)
+    @app.errorhandler(404)
+    def not_found(e):
+        # If the request is an API call, return a JSON 404 error
+        from flask import request, jsonify
+        if request.path.startswith('/api/'):
+            return jsonify(error="Not found"), 404
+        
+        # Otherwise, let the React router handle the unknown URL
+        return app.send_static_file('index.html')
 
     with app.app_context():
         db.create_all()
