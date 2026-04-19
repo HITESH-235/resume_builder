@@ -30,7 +30,7 @@ class ResumeService:
     @staticmethod
     def get_all_resumes(user_id):
         resumes = Resume.query.filter_by(user_id=user_id).all()
-        return [{"id": r.id, "title": r.title, "name": r.name, "summary": r.summary} for r in resumes], 200
+        return [{"id": r.id, "title": r.title, "name": r.name, "summary": r.summary, "updated_at": r.updated_at} for r in resumes], 200
 
 
     @staticmethod

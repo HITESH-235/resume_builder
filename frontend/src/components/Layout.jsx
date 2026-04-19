@@ -30,9 +30,9 @@ const Layout = () => {
             <span className="text-gradient">ResumeBuilder</span>
           </Link>
           <nav className="nav-links">
-            <button 
-              className="theme-toggle" 
-              onClick={toggleTheme} 
+            <button
+              className="theme-toggle"
+              onClick={toggleTheme}
               title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
             >
               {theme === 'light' ? (
@@ -46,7 +46,7 @@ const Layout = () => {
               <>
                 <Link to="/dashboard">Dashboard</Link>
                 <Link to="/profile">Profile</Link>
-                <button className="btn btn-outline" onClick={handleLogout}>Logout</button>
+                <button className="btn btn-red" onClick={handleLogout}>Logout</button>
               </>
             ) : (
               <>

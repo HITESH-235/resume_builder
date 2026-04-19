@@ -21,10 +21,9 @@ const ResumeCard = ({ resume, onDelete, onDuplicate }) => {
   }, []);
 
   const displayName = resume.name || resume.title || 'Untitled Resume';
-  // Provides default text for missing summaries
-  const displaySummary = resume.summary
-    ? resume.summary.substring(0, 80) + (resume.summary.length > 80 ? '...' : '')
-    : 'No summary yet';
+  const displayDate = resume.updated_at 
+    ? new Date(resume.updated_at).toLocaleDateString() 
+    : 'Never';
 
   return (
     <div
@@ -32,8 +31,15 @@ const ResumeCard = ({ resume, onDelete, onDuplicate }) => {
       onClick={() => navigate(`/resume/${resume.id}/edit`)}
     >
       <div className="resume-card-body">
-        <div className="resume-card-title">{displayName}</div>
-        <div className="resume-card-summary">{displaySummary}</div>
+        <div className="resume-card-title" style={{ color: 'var(--primary)' }}>{displayName}</div>
+        {resume.summary && (
+          <div className="resume-card-summary scrollable-summary">
+            {resume.summary}
+          </div>
+        )}
+      </div>
+      <div className="resume-card-footer">
+        <span className="resume-card-date text-red">Modified {displayDate}</span>
       </div>
 
       {/* 3-dot menu */}
@@ -86,10 +92,17 @@ const Dashboard = () => {
   const handleDelete = async (id) => {
     // Confirms deletion intent before removing the resume
     if (!window.confirm('Delete this resume?')) return;
+    // Optimistic UI: immediately remove the card from view
+    setResumes(prev => prev.filter(r => r.id !== id));
     try {
       await api.delete(`/resume/${id}`);
-      fetchResumes();
-    } catch (err) { console.error(err); }
+      // Re-fetch to ensure state is in sync with the server
+      await fetchResumes();
+    } catch (err) {
+      console.error(err);
+      // Rollback optimistic update on failure
+      await fetchResumes();
+    }
   };
 
   const handleDuplicate = async (id) => {
@@ -108,8 +121,8 @@ const Dashboard = () => {
       <div className="resumes-grid">
         {/* Create New — always first */}
         <Link to="/resume/new" className="resume-card resume-card-new">
-          <div className="resume-card-icon">+</div>
-          <div className="resume-card-label">Create New Resume</div>
+          <div className="resume-card-icon text-red">+</div>
+          <div className="resume-card-new-label" style={{ color: 'var(--primary)', fontWeight: 700 }}>Create New Resume</div>
         </Link>
 
         {/* Existing resumes */}

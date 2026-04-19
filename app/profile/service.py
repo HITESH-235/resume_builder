@@ -1,5 +1,6 @@
 from datetime import datetime
 from app.models import User, Experience, Skill, Education, Project, Certification, Course, Achievement
+from app.models import ResumeExperience, ResumeEducation, ResumeProject, ResumeCertification, ResumeCourse, ResumeAchievement
 # (otherwise user has backref to profile)
 from app.utils.date_utils import check_date_overlap
 from app.extensions.db import db
@@ -176,6 +177,9 @@ class ProfileService:
         if not exp or exp.profile_id != user.profile.id:
             return {"error":"Experience not found"}, 404
 
+        # Remove any resume associations first to avoid FK constraint violations
+        ResumeExperience.query.filter_by(experience_id=exp_id).delete()
+
         db.session.delete(exp)
         try:
             db.session.commit()
@@ -183,7 +187,7 @@ class ProfileService:
             db.session.rollback()
             return {"error": "Database error"}, 500
         
-        return {"message":"Experience deleted successfullly"}, 200
+        return {"message":"Experience deleted successfully"}, 200
 
 # --------------------------------------------------------------------------------------------------------------
     @staticmethod
@@ -295,6 +299,9 @@ class ProfileService:
         if not edu or edu.profile_id != user.profile.id:
             return {"error":"Education not found"}, 404
 
+        # Remove any resume associations first to avoid FK constraint violations
+        ResumeEducation.query.filter_by(education_id=edu_id).delete()
+
         db.session.delete(edu)
         try:
             db.session.commit()
@@ -302,7 +309,7 @@ class ProfileService:
             db.session.rollback()
             return {"error": "Database error"}, 500
         
-        return {"message":"Education deleted successfullly"}, 200
+        return {"message":"Education deleted successfully"}, 200
 
 # --------------------------------------------------------------------------------------------------------------
     @staticmethod
@@ -465,6 +472,8 @@ class ProfileService:
         if not user or not user.profile: return {"error":"Profile not found"}, 404
         item = Project.query.filter_by(id=item_id, profile_id=user.profile.id).first()
         if not item: return {"error": "Project not found"}, 404
+        # Remove any resume associations first to avoid FK constraint violations
+        ResumeProject.query.filter_by(project_id=item_id).delete()
         db.session.delete(item)
         db.session.commit()
         return {"message": "Project deleted successfully"}, 200
@@ -504,6 +513,8 @@ class ProfileService:
         if not user or not user.profile: return {"error":"Profile not found"}, 404
         item = Certification.query.filter_by(id=item_id, profile_id=user.profile.id).first()
         if not item: return {"error": "Certification not found"}, 404
+        # Remove any resume associations first to avoid FK constraint violations
+        ResumeCertification.query.filter_by(certification_id=item_id).delete()
         db.session.delete(item)
         db.session.commit()
         return {"message": "Certification deleted successfully"}, 200
@@ -543,6 +554,8 @@ class ProfileService:
         if not user or not user.profile: return {"error":"Profile not found"}, 404
         item = Course.query.filter_by(id=item_id, profile_id=user.profile.id).first()
         if not item: return {"error": "Course not found"}, 404
+        # Remove any resume associations first to avoid FK constraint violations
+        ResumeCourse.query.filter_by(course_id=item_id).delete()
         db.session.delete(item)
         db.session.commit()
         return {"message": "Course deleted successfully"}, 200
@@ -582,6 +595,8 @@ class ProfileService:
         if not user or not user.profile: return {"error":"Profile not found"}, 404
         item = Achievement.query.filter_by(id=item_id, profile_id=user.profile.id).first()
         if not item: return {"error": "Achievement not found"}, 404
+        # Remove any resume associations first to avoid FK constraint violations
+        ResumeAchievement.query.filter_by(achievement_id=item_id).delete()
         db.session.delete(item)
         db.session.commit()
         return {"message": "Achievement deleted successfully"}, 200

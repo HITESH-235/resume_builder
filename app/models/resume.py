@@ -36,27 +36,30 @@ class Resume(db.Model):
     experiences = db.relationship(
         "ResumeExperience",
         backref="resume",
-        lazy="selectin"  # loads all related rows in ONE extra query instead of N queries
+        lazy="selectin",
+        cascade="all, delete-orphan"  # auto-delete join rows when resume is deleted
     )
 
     # one resume - many resume skills
     skills = db.relationship(
         "ResumeSkill",
         backref="resume",
-        lazy="selectin"
+        lazy="selectin",
+        cascade="all, delete-orphan"
     )
 
     # one resume - many educations
     educations = db.relationship(
         "ResumeEducation",
         backref="resume",
-        lazy="selectin"
+        lazy="selectin",
+        cascade="all, delete-orphan"
     )
 
-    projects = db.relationship("ResumeProject", backref="resume", lazy="selectin")
-    certifications = db.relationship("ResumeCertification", backref="resume", lazy="selectin")
-    courses = db.relationship("ResumeCourse", backref="resume", lazy="selectin")
-    achievements = db.relationship("ResumeAchievement", backref="resume", lazy="selectin")
+    projects = db.relationship("ResumeProject", backref="resume", lazy="selectin", cascade="all, delete-orphan")
+    certifications = db.relationship("ResumeCertification", backref="resume", lazy="selectin", cascade="all, delete-orphan")
+    courses = db.relationship("ResumeCourse", backref="resume", lazy="selectin", cascade="all, delete-orphan")
+    achievements = db.relationship("ResumeAchievement", backref="resume", lazy="selectin", cascade="all, delete-orphan")
 
 
 

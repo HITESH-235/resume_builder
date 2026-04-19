@@ -238,7 +238,7 @@ const ResumeBuilder = () => {
         </div>
         <div style={{ display: 'flex', gap: '1rem' }}>
           <button className="btn btn-primary" onClick={handleDownloadPdf}>Download PDF</button>
-          <button className="btn btn-outline" onClick={() => navigate('/dashboard')}>Done</button>
+          <button className="btn btn-red" onClick={() => navigate('/dashboard')}>Done</button>
         </div>
       </div>
 

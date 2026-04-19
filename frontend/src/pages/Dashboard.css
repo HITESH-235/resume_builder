@@ -34,7 +34,7 @@
   color: var(--text-main); /* Theme aware text */
   box-shadow: var(--shadow-sm);
   transition: all 0.3s ease;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .resume-card:hover {
@@ -71,6 +71,11 @@
   margin-bottom: 0.5rem;
 }
 
+.resume-card-new-label {
+  font-size: 1.1rem;
+  text-align: center;
+}
+
 .resume-card-title {
   font-size: 1.1rem;
   font-weight: 700;
@@ -82,15 +87,34 @@
   color: var(--text-main);
 }
 
-.resume-card-summary {
-  font-size: 0.875rem;
+.scrollable-summary {
+  font-size: 0.85rem;
   color: var(--text-muted);
   line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  max-height: 80px;
+  overflow-y: auto;
+  margin-bottom: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.scrollable-summary::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollable-summary::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.resume-card-footer {
+  margin-top: auto;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.resume-card-date {
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
 /* 3-dot menu */
@@ -102,7 +126,12 @@
 
 .three-dot-btn {
   padding: 0.4rem;
-  border-radius: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
   color: var(--text-muted);
 }
 
