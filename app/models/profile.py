@@ -19,5 +19,12 @@ class Profile(db.Model):
     # one-to-many: 1 profile -> many experiences
     experiences = db.relationship("Experience", backref="profile", lazy=True)
 
+    # one-to-many: 1 profile -> many educations
+    educations = db.relationship("Education", backref="profile", cascade="all, delete-orphan")
+    projects = db.relationship("Project", backref="profile", cascade="all, delete-orphan")
+    certifications = db.relationship("Certification", backref="profile", cascade="all, delete-orphan")
+    courses = db.relationship("Course", backref="profile", cascade="all, delete-orphan")
+    achievements = db.relationship("Achievement", backref="profile", cascade="all, delete-orphan")
+
     # many-to-many: profile <-> skills
     skills = db.relationship("Skill", secondary=profile_skills, backref="profiles")
