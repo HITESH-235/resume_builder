@@ -18,7 +18,11 @@ class ProfileController:
         response,status = ProfileService.add_skills(user_id, data)
         return jsonify(response), status
 
-
+    @staticmethod
+    def delete_skill(skill_id):
+        user_id = int(get_jwt_identity())
+        response, status = ProfileService.delete_skill(user_id, skill_id)
+        return jsonify(response), status
 
     @staticmethod
     def add_experience():

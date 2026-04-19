@@ -43,6 +43,22 @@ class ProfileService:
             "message": "Skills processed", # not "added"
             "added": added_skills # does not show ones that already existed
         }, 200
+
+    @staticmethod
+    def delete_skill(user_id, skill_id):
+        user = User.query.get(user_id)
+        if not user or not user.profile:
+            return {"error":"Profile not found"}, 404
+        
+        skill = Skill.query.get(skill_id)
+        if not skill:
+            return {"error": "Skill not found"}, 404
+            
+        if skill in user.profile.skills:
+            user.profile.skills.remove(skill)
+            db.session.commit()
+            return {"message": "Skill removed successfully"}, 200
+        return {"error": "Skill not in profile"}, 404
         
 # --------------------------------------------------------------------------------------------------------------
     @staticmethod

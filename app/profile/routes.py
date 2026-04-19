@@ -70,6 +70,12 @@ def delete_edu(edu_id):
 @jwt_required()
 def add_skills():
     return ProfileController.add_skills()
+
+@profile_bp.route('/skills/<int:skill_id>', methods=["DELETE"])
+@jwt_required()
+def delete_skill(skill_id):
+    return ProfileController.delete_skill(skill_id)
+
 @profile_bp.route('/project', methods=['POST'])
 @jwt_required()
 def add_project():

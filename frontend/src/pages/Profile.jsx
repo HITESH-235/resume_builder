@@ -56,6 +56,15 @@ const Profile = () => {
     }
   };
 
+  const handleDeleteSkill = async (id) => {
+    try {
+      await api.delete(`/profile/skills/${id}`);
+      fetchData();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleAddExp = async (e) => {
     e.preventDefault();
     try {
@@ -172,7 +181,12 @@ const Profile = () => {
           </div>
           <div className="profile-list-area">
             <div className="skills-list">
-              {skills.map(s => <span key={s.id} className="skill-tag">{s.name}</span>)}
+              {skills.map(s => (
+                <span key={s.id} className="skill-tag">
+                  {s.name}
+                  <button onClick={() => handleDeleteSkill(s.id)} className="btn-danger btn-small" style={{ display: 'inline-flex', marginLeft: '0.5rem', width: '16px', height: '16px', fontSize: '10px', verticalAlign: 'middle' }}>✕</button>
+                </span>
+              ))}
             </div>
           </div>
         </div>
