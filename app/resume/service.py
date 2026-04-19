@@ -1,7 +1,8 @@
 from app.extensions.db import db
-from app.models.resume import Resume, ResumeExperience, ResumeSkill
+from app.models import User, Resume, Experience, Skill, ResumeSkill, ResumeExperience, Education, ResumeEducation, Project, ResumeProject, Certification, ResumeCertification, Course, ResumeCourse, Achievement, ResumeAchievement
 from app.models.experience import Experience
 from app.models.skill import Skill
+from app.models.education import Education
 from app.models.user import User
 
 
@@ -25,6 +26,11 @@ class ResumeService:
 
         if not resume: return {"error":"Resume not found"}, 404
         return resume, 200 # *needs to be serialised in controller*
+
+    @staticmethod
+    def get_all_resumes(user_id):
+        resumes = Resume.query.filter_by(user_id=user_id).all()
+        return [{"id": r.id, "title": r.title, "name": r.name, "summary": r.summary} for r in resumes], 200
 
 
     @staticmethod
@@ -214,16 +220,302 @@ class ResumeService:
         db.session.commit()
         return {"message":"Skill removed"}, 200
     
+    @staticmethod
+    def add_education_to_resume(user_id, resume_id, education_id, order):
+        # check resume exists
+        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+        if not resume:
+            return {"error":"Resume not found"}, 404
+
+        # check education_id to be present in Education table and linked to the same profile
+        edu = Education.query.get(education_id)
+        if not edu or edu.profile.user_id != user_id:
+            return {"error":"Invalid education"}, 400
+
+        # new education to be added should not be present with the same education_id in the resume
+        existing = ResumeEducation.query.filter_by(
+            resume_id=resume_id,
+            education_id=education_id
+        ).first()
+        if existing: return {"error":"Education already added"}, 400
+
+        # list of educations in the joint table for a given resume_id, sorted in order
+        associations = ResumeEducation.query.filter_by(resume_id=resume_id).order_by(ResumeEducation.order).all()
+
+        # making the new give order in-bound
+        if order < 0: order = 0 # will require shifting
+        if order > len(associations): order = len(associations) # append then new edu at end
+
+        # shift the other orders by 1, that are affected by insertion:
+        for assoc in associations:
+            if assoc.order >= order: assoc.order += 1
+
+        # making the new row for the joint table
+        new_assoc = ResumeEducation(
+            resume_id = resume_id,
+            education_id = education_id,
+            order = order
+        )
+
+        db.session.add(new_assoc)
+        db.session.commit()
+        return {"message": "Education added successfully"}, 201
+
+    @staticmethod
+    def reorder_educations(user_id, resume_id, ordered_education_ids):
+        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+        if not resume: return {"error":"Resume not found"}, 404
+
+        associations = ResumeEducation.query.filter_by(
+            resume_id=resume_id
+        ).all()
+
+        existing_ids = {a.education_id for a in associations}
+        if set(ordered_education_ids) != existing_ids:
+            return {"error": "Invalid ordering set"}, 400
+
+        id_to_assoc = {a.education_id: a for a in associations}
+
+        for assoc in associations:
+            assoc.order += 1000
+        db.session.flush()
+
+        for new_order, edu_id in enumerate(ordered_education_ids):
+            id_to_assoc[edu_id].order = new_order
+
+        db.session.commit()
+        return {"message": "Educations reordered"}, 200
+
+    @staticmethod
+    def remove_education_from_resume(user_id, resume_id, education_id):
+        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+        if not resume: return {"error": "Resume not found"}, 404
+
+        assoc = ResumeEducation.query.filter_by(
+            education_id = education_id, 
+            resume_id=resume_id
+        ).first()
+
+        if not assoc: return {"error":"Education not in resume"}, 404
+
+        removed_order = assoc.order
+
+        db.session.delete(assoc)
+        remaining = ResumeEducation.query.filter_by(resume_id=resume_id).all()
+        for item in remaining:
+            if item.order > removed_order: item.order -= 1
+
+        db.session.commit()
+        return {"message":"Education removed"}, 200
 
     @staticmethod
     def update_resume(user_id, resume_id, data):
         resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
         if not resume: return {"error":"Resume not found"}, 404
 
-        if "title" in data:
-            resume.title = data["title"]
-        if "summary" in data:
-            resume.summary = data["summary"]
+        if "title" in data: resume.title = data["title"]
+        if "name" in data: resume.name = data["name"]
+        if "summary" in data: resume.summary = data["summary"]
+        if "designation" in data: resume.designation = data["designation"]
+        if "email" in data: resume.email = data["email"]
+        if "phone" in data: resume.phone = data["phone"]
+        if "location" in data: resume.location = data["location"]
 
         db.session.commit()
         return {"message":"Resume updated"}, 200
+
+    @staticmethod
+    def delete_resume(user_id, resume_id):
+        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+        if not resume: return {"error":"Resume not found"}, 404
+        db.session.delete(resume)
+        db.session.commit()
+        return {"message":"Resume deleted"}, 200
+
+    @staticmethod
+    def duplicate_resume(user_id, resume_id):
+        original = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+        if not original: return {"error":"Resume not found"}, 404
+
+        copy = Resume(
+            user_id=user_id,
+            title=original.title,
+            name=(original.name or original.title) + " (Copy)",
+            summary=original.summary,
+            designation=original.designation,
+            email=original.email,
+            phone=original.phone,
+            location=original.location,
+        )
+        db.session.add(copy)
+        db.session.flush()  # get copy.id
+
+        # Duplicate all associations
+        for assoc in original.skills:
+            db.session.add(ResumeSkill(resume_id=copy.id, skill_id=assoc.skill_id, order=assoc.order))
+        for assoc in original.experiences:
+            db.session.add(ResumeExperience(resume_id=copy.id, experience_id=assoc.experience_id, order=assoc.order))
+        for assoc in original.educations:
+            db.session.add(ResumeEducation(resume_id=copy.id, education_id=assoc.education_id, order=assoc.order))
+        for assoc in original.projects:
+            db.session.add(ResumeProject(resume_id=copy.id, project_id=assoc.project_id, order=assoc.order))
+        for assoc in original.certifications:
+            db.session.add(ResumeCertification(resume_id=copy.id, certification_id=assoc.certification_id, order=assoc.order))
+        for assoc in original.courses:
+            db.session.add(ResumeCourse(resume_id=copy.id, course_id=assoc.course_id, order=assoc.order))
+        for assoc in original.achievements:
+            db.session.add(ResumeAchievement(resume_id=copy.id, achievement_id=assoc.achievement_id, order=assoc.order))
+
+        db.session.commit()
+        return {"message":"Resume duplicated", "resume_id": copy.id}, 201
+    @staticmethod
+    def add_project_to_resume(user_id, resume_id, project_id, order):
+        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+        if not resume: return {"error":"Resume not found"}, 404
+        user = User.query.get(user_id)
+        project_item = Project.query.filter_by(id=project_id, profile_id=user.profile.id).first()
+        if not project_item: return {"error":"Project not found in user profile"}, 404
+        existing = ResumeProject.query.filter_by(resume_id=resume_id, project_id=project_id).first()
+        if existing: return {"error":"Project already in resume"}, 400
+        existing_order = ResumeProject.query.filter_by(resume_id=resume_id, order=order).first()
+        if existing_order: return {"error":"Order already exists"}, 400
+        assoc = ResumeProject(resume_id=resume_id, project_id=project_id, order=order)
+        db.session.add(assoc)
+        db.session.commit()
+        return {"message":"Project added to resume"}, 201
+
+    @staticmethod
+    def reorder_projects(user_id, resume_id, order_data):
+        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+        if not resume: return {"error":"Resume not found"}, 404
+        for update in order_data:
+            project_id = update.get("id")
+            new_order = update.get("order")
+            assoc = ResumeProject.query.filter_by(resume_id=resume_id, project_id=project_id).first()
+            if assoc: assoc.order = new_order
+        db.session.commit()
+        return {"message":"Projects reordered"}, 200
+
+    @staticmethod
+    def remove_project_from_resume(user_id, resume_id, project_id):
+        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+        if not resume: return {"error":"Resume not found"}, 404
+        assoc = ResumeProject.query.filter_by(resume_id=resume_id, project_id=project_id).first()
+        if not assoc: return {"error":"Project not found in resume"}, 404
+        db.session.delete(assoc)
+        db.session.commit()
+        return {"message":"Project removed from resume"}, 200
+
+    @staticmethod
+    def add_certification_to_resume(user_id, resume_id, certification_id, order):
+        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+        if not resume: return {"error":"Resume not found"}, 404
+        user = User.query.get(user_id)
+        certification_item = Certification.query.filter_by(id=certification_id, profile_id=user.profile.id).first()
+        if not certification_item: return {"error":"Certification not found in user profile"}, 404
+        existing = ResumeCertification.query.filter_by(resume_id=resume_id, certification_id=certification_id).first()
+        if existing: return {"error":"Certification already in resume"}, 400
+        existing_order = ResumeCertification.query.filter_by(resume_id=resume_id, order=order).first()
+        if existing_order: return {"error":"Order already exists"}, 400
+        assoc = ResumeCertification(resume_id=resume_id, certification_id=certification_id, order=order)
+        db.session.add(assoc)
+        db.session.commit()
+        return {"message":"Certification added to resume"}, 201
+
+    @staticmethod
+    def reorder_certifications(user_id, resume_id, order_data):
+        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+        if not resume: return {"error":"Resume not found"}, 404
+        for update in order_data:
+            certification_id = update.get("id")
+            new_order = update.get("order")
+            assoc = ResumeCertification.query.filter_by(resume_id=resume_id, certification_id=certification_id).first()
+            if assoc: assoc.order = new_order
+        db.session.commit()
+        return {"message":"Certifications reordered"}, 200
+
+    @staticmethod
+    def remove_certification_from_resume(user_id, resume_id, certification_id):
+        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+        if not resume: return {"error":"Resume not found"}, 404
+        assoc = ResumeCertification.query.filter_by(resume_id=resume_id, certification_id=certification_id).first()
+        if not assoc: return {"error":"Certification not found in resume"}, 404
+        db.session.delete(assoc)
+        db.session.commit()
+        return {"message":"Certification removed from resume"}, 200
+
+    @staticmethod
+    def add_course_to_resume(user_id, resume_id, course_id, order):
+        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+        if not resume: return {"error":"Resume not found"}, 404
+        user = User.query.get(user_id)
+        course_item = Course.query.filter_by(id=course_id, profile_id=user.profile.id).first()
+        if not course_item: return {"error":"Course not found in user profile"}, 404
+        existing = ResumeCourse.query.filter_by(resume_id=resume_id, course_id=course_id).first()
+        if existing: return {"error":"Course already in resume"}, 400
+        existing_order = ResumeCourse.query.filter_by(resume_id=resume_id, order=order).first()
+        if existing_order: return {"error":"Order already exists"}, 400
+        assoc = ResumeCourse(resume_id=resume_id, course_id=course_id, order=order)
+        db.session.add(assoc)
+        db.session.commit()
+        return {"message":"Course added to resume"}, 201
+
+    @staticmethod
+    def reorder_courses(user_id, resume_id, order_data):
+        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+        if not resume: return {"error":"Resume not found"}, 404
+        for update in order_data:
+            course_id = update.get("id")
+            new_order = update.get("order")
+            assoc = ResumeCourse.query.filter_by(resume_id=resume_id, course_id=course_id).first()
+            if assoc: assoc.order = new_order
+        db.session.commit()
+        return {"message":"Courses reordered"}, 200
+
+    @staticmethod
+    def remove_course_from_resume(user_id, resume_id, course_id):
+        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+        if not resume: return {"error":"Resume not found"}, 404
+        assoc = ResumeCourse.query.filter_by(resume_id=resume_id, course_id=course_id).first()
+        if not assoc: return {"error":"Course not found in resume"}, 404
+        db.session.delete(assoc)
+        db.session.commit()
+        return {"message":"Course removed from resume"}, 200
+
+    @staticmethod
+    def add_achievement_to_resume(user_id, resume_id, achievement_id, order):
+        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+        if not resume: return {"error":"Resume not found"}, 404
+        user = User.query.get(user_id)
+        achievement_item = Achievement.query.filter_by(id=achievement_id, profile_id=user.profile.id).first()
+        if not achievement_item: return {"error":"Achievement not found in user profile"}, 404
+        existing = ResumeAchievement.query.filter_by(resume_id=resume_id, achievement_id=achievement_id).first()
+        if existing: return {"error":"Achievement already in resume"}, 400
+        existing_order = ResumeAchievement.query.filter_by(resume_id=resume_id, order=order).first()
+        if existing_order: return {"error":"Order already exists"}, 400
+        assoc = ResumeAchievement(resume_id=resume_id, achievement_id=achievement_id, order=order)
+        db.session.add(assoc)
+        db.session.commit()
+        return {"message":"Achievement added to resume"}, 201
+
+    @staticmethod
+    def reorder_achievements(user_id, resume_id, order_data):
+        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+        if not resume: return {"error":"Resume not found"}, 404
+        for update in order_data:
+            achievement_id = update.get("id")
+            new_order = update.get("order")
+            assoc = ResumeAchievement.query.filter_by(resume_id=resume_id, achievement_id=achievement_id).first()
+            if assoc: assoc.order = new_order
+        db.session.commit()
+        return {"message":"Achievements reordered"}, 200
+
+    @staticmethod
+    def remove_achievement_from_resume(user_id, resume_id, achievement_id):
+        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+        if not resume: return {"error":"Resume not found"}, 404
+        assoc = ResumeAchievement.query.filter_by(resume_id=resume_id, achievement_id=achievement_id).first()
+        if not assoc: return {"error":"Achievement not found in resume"}, 404
+        db.session.delete(assoc)
+        db.session.commit()
+        return {"message":"Achievement removed from resume"}, 200
