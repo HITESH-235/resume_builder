@@ -1,0 +1,144 @@
+.dashboard-container {
+  width: 100%;
+}
+
+.dashboard-header {
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ── Responsive Grid ── */
+.resumes-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+  width: 100%;
+}
+
+/* Base card */
+.resume-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: var(--bg-card); /* Theme aware background */
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  min-height: 180px;
+  cursor: pointer;
+  text-decoration: none;
+  color: var(--text-main); /* Theme aware text */
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.resume-card:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-4px);
+  border-color: var(--primary);
+}
+
+.resume-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Create New card */
+.resume-card-new {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-style: dashed;
+  border-width: 2px;
+  color: var(--primary);
+  background: var(--bg-item);
+  opacity: 0.8;
+}
+
+.resume-card-new:hover {
+  opacity: 1;
+  background: var(--bg-card);
+}
+
+.resume-card-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.resume-card-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  padding-right: 2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-main);
+}
+
+.resume-card-summary {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 3-dot menu */
+.resume-card-menu {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+}
+
+.three-dot-btn {
+  padding: 0.4rem;
+  border-radius: 6px;
+  color: var(--text-muted);
+}
+
+.three-dot-btn:hover {
+  background: var(--bg-alt);
+  color: var(--text-main);
+}
+
+.dropdown-menu {
+  position: absolute;
+  right: 0;
+  top: 2.5rem;
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-lg);
+  min-width: 160px;
+  z-index: 100;
+}
+
+.dropdown-menu button {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-main);
+}
+
+.dropdown-menu button:hover {
+  background: var(--bg-item);
+}
+
+.dropdown-menu button.danger {
+  color: #ef4444;
+}
