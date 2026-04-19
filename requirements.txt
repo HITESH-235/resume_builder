@@ -16,3 +16,6 @@ SQLAlchemy==2.0.48
 typing_extensions==4.15.0
 Werkzeug==3.1.7
 wheel==0.46.3
+gunicorn==23.0.0
+psycopg2-binary==2.9.10
+flask-cors==5.0.0

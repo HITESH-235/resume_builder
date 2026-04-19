@@ -8,19 +8,25 @@ import os
 load_dotenv()
 
 def create_app():
-    app = Flask(__name__)
+    # Set up paths for the built frontend
+    # In production, we assume the 'dist' folder exists in the frontend directory
+    frontend_dist = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'frontend', 'dist')
+    
+    app = Flask(__name__, static_folder=frontend_dist, static_url_path='/')
     
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY") or "47-fallback-key"
     
-    # didnt give the abs path, so creates insider instance folder
-    app.config["SQLALCHEMY_DATABASE_URI"] = 'sqlite:///resume.db' 
+    # Use environment variable for DB in production, fallback to SQLite for local dev
+    # Render and other platforms provide DATABASE_URL
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///resume.db")
+    
+    # Fix for SQLAlchemy 1.4+ which requires 'postgresql://' instead of 'postgres://'
+    if app.config["SQLALCHEMY_DATABASE_URI"].startswith("postgres://"):
+        app.config["SQLALCHEMY_DATABASE_URI"] = app.config["SQLALCHEMY_DATABASE_URI"].replace("postgres://", "postgresql://", 1)
     
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=20)
     app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=7)
-
-    # optional: helps debugging during development
-    app.config["DEBUG"] = True
 
     db.init_app(app)
     jwt.init_app(app)
@@ -34,6 +40,16 @@ def create_app():
     app.register_blueprint(profile_bp, url_prefix='/api/profile')
     app.register_blueprint(resume_bp, url_prefix="/api/resume")
     app.register_blueprint(jd_bp, url_prefix="/api/jd")
+
+    # Serve the React app index for any non-API routes
+    # This enables client-side routing in React
+    @app.route('/', defaults={'path': ''})
+    @app.route('/<path:path>')
+    def serve(path):
+        if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+            return app.send_static_file(path)
+        else:
+            return app.send_static_file('index.html')
 
     with app.app_context():
         db.create_all()
