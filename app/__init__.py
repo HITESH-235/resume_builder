@@ -30,10 +30,10 @@ def create_app():
     from app.resume.routes import resume_bp
     from app.job_description.routes import jd_bp
     
-    app.register_blueprint(auth_bp, url_prefix='/auth')
-    app.register_blueprint(profile_bp, url_prefix='/profile')
-    app.register_blueprint(resume_bp, url_prefix="/resume")
-    app.register_blueprint(jd_bp, url_prefix="/jd")
+    app.register_blueprint(auth_bp, url_prefix='/api/auth')
+    app.register_blueprint(profile_bp, url_prefix='/api/profile')
+    app.register_blueprint(resume_bp, url_prefix="/api/resume")
+    app.register_blueprint(jd_bp, url_prefix="/api/jd")
 
     with app.app_context():
         db.create_all()
