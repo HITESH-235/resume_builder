@@ -8,10 +8,10 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_tok
 class AuthController:
 
     @staticmethod
-    @jwt_required(refresh=True)
+    @jwt_required(refresh=True) # enforces that only refresh token call it, access token fail
     def refresh():
         user_id = get_jwt_identity()
-        new_access_token = create_access_token(identity=user_id)
+        new_access_token = create_access_token(identity=user_id) # generates new access token for 
         return {"access_token": new_access_token}, 200
 
     @staticmethod

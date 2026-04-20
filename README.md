@@ -106,8 +106,3 @@ npm run dev
 **Hitesh Sinha**  
 📧 **Email:** codonstream.72@gmail.com  
 🐙 **GitHub:** [HITESH-235](https://github.com/HITESH-235)
-
----
-<div align="center">
-  <i>Built with ❤️ to make job hunting a little more beautiful.</i>
-</div>
