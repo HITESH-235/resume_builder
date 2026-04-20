@@ -24,6 +24,13 @@ Check out the live application hosted on Render:
 
 ---
 
+## 📺 Project Walkthrough
+
+Watch the platform in action:  
+🎬 **[Project Summary Video](https://drive.google.com/file/d/1slfxgiCXoO2xbDYpMAnYmi-sg1uXKNxD/view?usp=drive_link)**
+
+---
+
 ## 💎 What Makes It Attractive?
 
 - **🎨 Executive-Grade UI/UX:** Built with vanilla CSS emphasizing modern aesthetics—smooth gradients, glassmorphism (`backdrop-filter: blur`), and micro-animations for high user engagement.
