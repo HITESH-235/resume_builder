@@ -75,7 +75,17 @@ const ResumeCard = ({ resume, onDelete, onDuplicate }) => {
 
 const Dashboard = () => {
   const [resumes, setResumes] = useState([]);
+  const [userProfile, setUserProfile] = useState(null);
   const navigate = useNavigate();
+
+  const fetchProfile = async () => {
+    try {
+      const res = await api.get('/profile');
+      setUserProfile(res.data.data.profile);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const fetchResumes = async () => {
     try {
@@ -87,7 +97,10 @@ const Dashboard = () => {
     }
   };
 
-  useEffect(() => { fetchResumes(); }, []);
+  useEffect(() => { 
+    fetchResumes(); 
+    fetchProfile();
+  }, []);
 
   const handleDelete = async (id) => {
     // Confirms deletion intent before removing the resume
@@ -115,7 +128,9 @@ const Dashboard = () => {
   return (
     <div className="dashboard-container animate-fade-in">
       <div className="dashboard-header">
-        <h1 className="text-gradient">My Resumes</h1>
+        <h1 className="text-gradient">
+          {userProfile?.full_name ? `Welcome back, ${userProfile.full_name}` : 'My Resumes'}
+        </h1>
       </div>
 
       <div className="resumes-grid">

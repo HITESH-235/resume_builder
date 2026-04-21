@@ -184,3 +184,66 @@
 .btn-danger:hover {
   background: #fee2e2;
 }
+
+/* ── Personal Info Card ── */
+.personal-info-card {
+  margin-bottom: 0.5rem;
+}
+
+.personal-info-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.info-inputs {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 2rem;
+}
+
+@media (max-width: 768px) {
+  .info-inputs {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.input-group label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.input-group input, .input-group textarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: var(--bg-item);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-main);
+  transition: border-color 0.2s;
+}
+
+.input-group textarea {
+  height: 120px;
+  resize: none;
+  line-height: 1.6;
+}
+
+.input-group input:focus, .input-group textarea:focus {
+  border-color: var(--primary);
+  outline: none;
+}
+
+.save-btn {
+  align-self: flex-start;
+  padding: 0.75rem 2rem;
+  font-weight: 700;
+}

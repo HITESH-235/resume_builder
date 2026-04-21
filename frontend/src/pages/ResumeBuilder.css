@@ -7,18 +7,18 @@
 .builder-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-  gap: 1.5rem;
-  flex-wrap: wrap;
+  align-items: flex-end; /* Align buttons with the bottom of the input */
+  margin-bottom: 2.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  gap: 2rem;
 }
 
 .builder-heading-group {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
-  flex: 1;
-  min-width: 250px;
+  gap: 0.35rem;
+  flex: 0 1 500px; /* Don't grow too much, but can shrink */
 }
 
 .builder-heading-label {
@@ -270,7 +270,7 @@
 }
 
 .resume-section {
-  margin-bottom: 1.25rem; /* Standardized gap */
+  margin-bottom: 0.85rem; /* Reduced from 1.25rem */
   page-break-inside: avoid;
   break-inside: avoid;
 }
@@ -279,8 +279,8 @@
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  padding-bottom: 0.2rem;
-  margin-bottom: 0.75rem;
+  padding-bottom: 0.15rem;
+  margin-bottom: 0.5rem; /* Reduced from 0.75rem */
 }
 
 .skills-list {
@@ -299,7 +299,7 @@
 }
 
 .resume-exp-item, .resume-edu-item, .resume-proj-item, .resume-cert-item {
-  margin-bottom: 1rem;
+  margin-bottom: 0.6rem; /* Reduced from 1rem */
   page-break-inside: avoid;
   break-inside: avoid;
 }
@@ -329,8 +329,172 @@
 
 .resume-preview.is-printing {
   box-shadow: none !important;
+  border: none !important;
   border-radius: 0 !important;
   margin: 0 !important;
   padding: 0 !important;
   min-height: 0;
+}
+
+/* ── Resume Summary UI ── */
+.resume-summary-container {
+  position: relative;
+  width: 100%;
+}
+
+.sync-bio-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--primary);
+  z-index: 5;
+  box-shadow: var(--shadow-sm);
+}
+
+.sync-bio-btn.no-bio {
+  opacity: 0.3;
+  filter: grayscale(1);
+  cursor: not-allowed;
+}
+
+.sync-bio-btn:hover:not(.no-bio) {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+  transform: scale(1.05);
+}
+
+.sync-bio-btn::after {
+  content: "Use Profile Bio";
+  font-weight: 700;
+  font-size: 0.65rem;
+}
+
+/* ── Drag and Drop Styling ───────────────────── */
+.draggable-item {
+  cursor: grab;
+  position: relative;
+  transition: transform 0.2s, background-color 0.2s, box-shadow 0.2s;
+  user-select: none;
+}
+
+.draggable-item:active {
+  cursor: grabbing;
+}
+
+.draggable-item.dragging {
+  opacity: 0.4;
+  transform: scale(0.98);
+  box-shadow: none !important;
+}
+
+.drag-handle-icon {
+  margin-right: 4px;
+  color: #94a3b8 !important; /* Subtle gray dots */
+  flex-shrink: 0;
+  cursor: grab;
+}
+
+.resume-exp-item.draggable-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  margin-left: -0.5rem;
+  border-radius: 6px;
+  border: 1px solid transparent;
+}
+
+.resume-exp-item.draggable-item:hover {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+.drag-handle-icon-side {
+  color: #cbd5e1 !important;
+  margin-top: 2px;
+  cursor: grab;
+}
+
+.draggable-item.drag-over-item {
+  border-top: 2px solid var(--primary) !important;
+  background-color: rgba(30, 64, 175, 0.05) !important;
+  transform: translateY(2px);
+}
+
+/* Drop Zone Feedback - Reset for Print */
+.resume-section {
+  padding: 0.4rem; /* Reduced from 0.75rem */
+  margin-left: -0.4rem;
+  margin-right: -0.4rem;
+  border-radius: 8px;
+  border: 2px dashed transparent;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.resume-preview.is-printing .resume-section {
+  padding: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  margin-bottom: 0.75rem !important;
+}
+
+.resume-section.valid-drop {
+  background-color: rgba(30, 64, 175, 0.03) !important;
+  border-color: rgba(30, 64, 175, 0.2) !important;
+}
+
+.resume-section.invalid-drop {
+  background-color: rgba(239, 68, 68, 0.05) !important;
+  border-color: rgba(239, 68, 68, 0.4) !important;
+  position: relative;
+}
+
+.resume-section.invalid-drop::after {
+  content: "Invalid Section";
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #ef4444 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Item Spacing Reset for Print */
+.resume-exp-item.draggable-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.25rem 0.4rem; /* Reduced from 0.5rem */
+  margin-left: -0.4rem;
+  border-radius: 6px;
+  border: 1px solid transparent;
+}
+
+.resume-preview.is-printing .resume-exp-item.draggable-item {
+  padding: 0 !important;
+  margin-left: 0 !important;
+  margin-bottom: 0.5rem !important;
+}
+
+/* Loading/Error Screens */
+.loading-screen, .error-screen {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300px;
+  font-weight: 600;
+  color: var(--text-muted);
 }

@@ -6,6 +6,30 @@ from .service import ProfileService
 
 class ProfileController:
 
+# ------------------------------------------------------------------------------------
+    # PROFILE methods:
+    @staticmethod
+    def get_profile():
+        user_id = int(get_jwt_identity())
+
+        response, status = ProfileService.get_profile(user_id)
+        return jsonify(response), status
+
+    @staticmethod
+    def update_profile():
+        user_id = int(get_jwt_identity())
+        data = request.get_json()
+        if not data: return jsonify({"error":"Invalid JSON"}), 400
+        
+        errors = ProfileUpdateSchema().validate(data)
+        if errors: return jsonify({"status":"error", "errors":errors}), 400
+        
+        response, status = ProfileService.update_profile(user_id, data)
+        return jsonify(response), status
+
+
+# ------------------------------------------------------------------------------------
+    # SKILLS methods: (no get for skills)
     @staticmethod
     def add_skills():
         user_id = get_jwt_identity()
@@ -24,6 +48,9 @@ class ProfileController:
         response, status = ProfileService.delete_skill(user_id, skill_id)
         return jsonify(response), status
 
+
+# ------------------------------------------------------------------------------------
+    # EXPERIENCE methods:
     @staticmethod
     def add_experience():
         user_id = int(get_jwt_identity())
@@ -60,6 +87,9 @@ class ProfileController:
         response, status = ProfileService.delete_experience(user_id, exp_id)
         return jsonify(response), status
 
+
+# ------------------------------------------------------------------------------------
+    # EDUCATION methods:
     @staticmethod
     def add_education():
         user_id = int(get_jwt_identity())
@@ -97,31 +127,8 @@ class ProfileController:
         return jsonify(response), status
 
 
-
-    @staticmethod
-    def get_profile():
-        user_id = int(get_jwt_identity())
-
-        response, status = ProfileService.get_profile(user_id)
-        return jsonify(response), status
-    
-    @staticmethod
-    def update_profile():
-        user_id = int(get_jwt_identity())
-        data = request.get_json()
-        if not data: return jsonify({"error":"Invalid JSON"}), 400
-        
-        errors = ProfileUpdateSchema().validate(data)
-        if errors: return jsonify({"status":"error", "errors":errors}), 400
-        
-        response, status = ProfileService.update_profile(user_id, data)
-        return jsonify(response), status
-    
-    @staticmethod
-    def get_full_profile():
-        user_id = int(get_jwt_identity())
-        response, status = ProfileService.get_full_profile(user_id)
-        return jsonify(response), status
+# ------------------------------------------------------------------------------------
+    # PROJECT methods:
     @staticmethod
     def add_project():
         user_id = int(get_jwt_identity())
@@ -155,6 +162,9 @@ class ProfileController:
         response, status = ProfileService.delete_project(user_id, item_id)
         return jsonify(response), status
 
+
+# ------------------------------------------------------------------------------------
+    # CERTIFICATION methods:
     @staticmethod
     def add_certification():
         user_id = int(get_jwt_identity())
@@ -188,6 +198,9 @@ class ProfileController:
         response, status = ProfileService.delete_certification(user_id, item_id)
         return jsonify(response), status
 
+
+# ------------------------------------------------------------------------------------
+    # COURSE methods:
     @staticmethod
     def add_course():
         user_id = int(get_jwt_identity())
@@ -221,6 +234,9 @@ class ProfileController:
         response, status = ProfileService.delete_course(user_id, item_id)
         return jsonify(response), status
 
+
+# ------------------------------------------------------------------------------------
+    # ACHIEVEMENT methods:
     @staticmethod
     def add_achievement():
         user_id = int(get_jwt_identity())

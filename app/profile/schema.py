@@ -1,6 +1,7 @@
 from marshmallow import Schema, fields, validate, validates_schema, ValidationError
 
 
+# ------------------------------------------------------------------------------------
 class ProfileUpdateSchema(Schema):
     full_name = fields.Str(required=False, validate=validate.Length(min=1))
     bio = fields.Str(required=False)
@@ -10,8 +11,14 @@ class ProfileUpdateSchema(Schema):
     def validate_at_least_one(self, data, **kwargs):
         if not data:
             raise ValidationError("At least one field must be provided")
-        
 
+
+# ------------------------------------------------------------------------------------
+class SkillSchema(Schema):
+    skills = fields.List(fields.Str(validate=validate.Length(min=1)), required=True, validate=validate.Length(min=1))
+
+
+# ------------------------------------------------------------------------------------
 class ExperienceSchema(Schema):
     company = fields.Str(required=True, validate=validate.Length(min=1))
     role = fields.Str(required=True, validate=validate.Length(min=1))
@@ -27,9 +34,7 @@ class ExperienceSchema(Schema):
         if s and e and s > e:
             raise ValidationError("start_date must be <= end_date")
 
-
-# separate class for checking errors for data for updation (put req = False)
-class ExperienceUpdateSchema(Schema):
+class ExperienceUpdateSchema(Schema): # differentiates from experienceSchema since req = False here:
     company = fields.Str(required=False, validate=validate.Length(min=1))
     role = fields.Str(required=False, validate=validate.Length(min=1))
     start_date = fields.Date(required=False, allow_none=False)
@@ -47,10 +52,9 @@ class ExperienceUpdateSchema(Schema):
     def validate_at_least_one(self, data, **kwargs):
         if not data:
             raise ValidationError("At least one field must be provided")
-        
-class SkillSchema(Schema):
-    skills = fields.List(fields.Str(validate=validate.Length(min=1)), required=True, validate=validate.Length(min=1))
 
+
+# ------------------------------------------------------------------------------------
 class EducationSchema(Schema):
     institution = fields.Str(required=True, validate=validate.Length(min=1))
     degree = fields.Str(required=True, validate=validate.Length(min=1))
@@ -84,6 +88,8 @@ class EducationUpdateSchema(Schema):
         if not data:
             raise ValidationError("At least one field must be provided")
 
+
+# ------------------------------------------------------------------------------------
 class ProjectSchema(Schema):
     name = fields.Str(required=True, validate=validate.Length(min=1))
     role = fields.Str(allow_none=True)
@@ -92,17 +98,23 @@ class ProjectSchema(Schema):
     start_date = fields.Date(required=True, allow_none=False)
     end_date = fields.Date(allow_none=True)
 
+
+# ------------------------------------------------------------------------------------
 class CertificationSchema(Schema):
     name = fields.Str(required=True, validate=validate.Length(min=1))
     issuer = fields.Str(required=True, validate=validate.Length(min=1))
     url = fields.Str(allow_none=True)
     date = fields.Date(required=True, allow_none=False)
 
+
+# ------------------------------------------------------------------------------------
 class CourseSchema(Schema):
     name = fields.Str(required=True, validate=validate.Length(min=1))
     institution = fields.Str(required=True, validate=validate.Length(min=1))
     date = fields.Date(required=True, allow_none=False)
 
+
+# ------------------------------------------------------------------------------------
 class AchievementSchema(Schema):
     title = fields.Str(required=True, validate=validate.Length(min=1))
     description = fields.Str(allow_none=True)

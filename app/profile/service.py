@@ -2,11 +2,115 @@ from datetime import datetime
 from app.models import User, Experience, Skill, Education, Project, Certification, Course, Achievement
 from app.models import ResumeExperience, ResumeEducation, ResumeProject, ResumeCertification, ResumeCourse, ResumeAchievement
 # (otherwise user has backref to profile)
-from app.utils.date_utils import check_date_overlap
 from app.extensions.db import db
 
 
 class ProfileService:
+
+# --------------------------------------------------------------------------------------------------------------
+    # PROFILE methods:
+
+    @staticmethod
+    def get_profile(user_id):
+        user = User.query.get(user_id)
+        if not user or not user.profile:
+            return {"error":"Profile not found"}, 404
+        
+        profile = user.profile
+        profile_data = {
+            "id": profile.id,
+            "full_name": profile.full_name, 
+            "email": user.email,
+            "bio": profile.bio
+        }
+        experiences = sorted(
+            profile.experiences, 
+            key=lambda x: x.start_date
+        )
+        experiences_data = [
+            {
+                "id": exp.id,
+                "company": exp.company,
+                "role": exp.role,
+                "start_date": exp.start_date.strftime('%Y-%m-%d'),
+                "end_date": exp.end_date.strftime('%Y-%m-%d') if exp.end_date else None
+            }
+            for exp in experiences
+        ]
+        educations = sorted(
+            profile.educations, 
+            key=lambda x: x.start_date
+        )
+        educations_data = [
+            {
+                "id": edu.id,
+                "institution": edu.institution,
+                "degree": edu.degree,
+                "description": edu.description,
+                "start_date": edu.start_date.strftime('%Y-%m-%d'),
+                "end_date": edu.end_date.strftime('%Y-%m-%d') if edu.end_date else None
+            }
+            for edu in educations
+        ]
+        skills_data = [{"id": skill.id, "name": skill.name} for skill in profile.skills]
+        projects_data = [
+            {
+                "id": p.id, "name": p.name, "role": p.role, "description": p.description, "link": p.link,
+                "start_date": p.start_date.strftime('%Y-%m-%d'),
+                "end_date": p.end_date.strftime('%Y-%m-%d') if p.end_date else None
+            } for p in profile.projects
+        ]
+        certifications_data = [
+            {
+                "id": c.id, "name": c.name, "issuer": c.issuer, "url": c.url,
+                "date": c.date.strftime('%Y-%m-%d')
+            } for c in profile.certifications
+        ]
+        courses_data = [
+            {
+                "id": c.id, "name": c.name, "institution": c.institution,
+                "date": c.date.strftime('%Y-%m-%d')
+            } for c in profile.courses
+        ]
+        achievements_data = [
+            {
+                "id": a.id, "title": a.title, "description": a.description,
+                "date": a.date.strftime('%Y-%m-%d')
+            } for a in profile.achievements
+        ]
+        return {
+            "status": "success",
+            "data": {
+                "profile": profile_data,
+                "experiences": experiences_data,
+                "educations": educations_data,
+                "projects": projects_data,
+                "certifications": certifications_data,
+                "courses": courses_data,
+                "achievements": achievements_data,
+                "skills": skills_data
+            }
+        }, 200
+
+
+    @staticmethod
+    def update_profile(user_id, data):
+        user = User.query.get(user_id)
+        if not user or not user.profile:
+            return {"error":"Profile not found"}, 404
+        
+        profile = user.profile
+        if "full_name" in data:
+            profile.full_name = data["full_name"]
+        if "bio" in data:
+            profile.bio = data["bio"]
+            
+        db.session.commit()
+        return {"message": "Profile updated successfully"}, 200
+
+
+# --------------------------------------------------------------------------------------------------------------
+    # SKILL functions:
 
     @staticmethod
     def add_skills(user_id, data):
@@ -21,7 +125,7 @@ class ProfileService:
         # check is skills_input is not null and is a list (must be a list)
         if not isinstance(skills_input, list): # equiv. to type(skills_input) == list
             return {"error":"Skills must be a list"}, 400
-        
+
         added_skills = []
         for skill_name in skills_input:
             # check if not an empty string:
@@ -45,6 +149,7 @@ class ProfileService:
             "added": added_skills # does not show ones that already existed
         }, 200
 
+
     @staticmethod
     def delete_skill(user_id, skill_id):
         user = User.query.get(user_id)
@@ -60,8 +165,11 @@ class ProfileService:
             db.session.commit()
             return {"message": "Skill removed successfully"}, 200
         return {"error": "Skill not in profile"}, 404
-        
+
+
 # --------------------------------------------------------------------------------------------------------------
+    # EXPERIENCE functions
+
     @staticmethod
     def add_experience(user_id, data):
 
@@ -69,18 +177,11 @@ class ProfileService:
         user = User.query.get(user_id)
         if not user or not user.profile: return {"error":"Profile not found"}, 404
 
-        existing_intervals = [(exp.start_date, exp.end_date) for exp in user.profile.experiences]
-
         try: # schemas checks date but format could still be different
             start_date = datetime.strptime(data["start_date"], '%Y-%m-%d').date()
             end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date() if data.get('end_date') else None
         except ValueError:
             return {"error":"Invalid date format (YYYY-MM-DD)"}, 400
-
-        existing_intervals.append((start_date, end_date))
-
-        if check_date_overlap(existing_intervals): # true if overlapping
-            return {"error":"Experience dates overlap with existing records"}, 400
 
         new_exp = Experience(
             profile_id = user.profile.id,
@@ -142,15 +243,8 @@ class ProfileService:
         except ValueError:
             return {"error":"Invalid date format (YYYY-MM-DD)"}, 400
 
-        # check overlapping of new dates:
-        other_intervals = [
-            (e.start_date, e.end_date)
-            for e in user.profile.experiences
-            if e.id != exp.id # done include the current updating experience
-        ]
-        other_intervals.append((new_start_date, new_end_date))
-        if check_date_overlap(other_intervals):
-            return {"error":"New dates overlap with existing records"}, 400
+        except ValueError:
+            return {"error":"Invalid date format (YYYY-MM-DD)"}, 400
         
         # update the two finally:
         exp.start_date = new_start_date
@@ -189,25 +283,21 @@ class ProfileService:
         
         return {"message":"Experience deleted successfully"}, 200
 
+
 # --------------------------------------------------------------------------------------------------------------
+    # EDUCATION functions:
+
     @staticmethod
     def add_education(user_id, data):
 
         user = User.query.get(user_id)
         if not user or not user.profile: return {"error":"Profile not found"}, 404
 
-        existing_intervals = [(edu.start_date, edu.end_date) for edu in user.profile.educations]
-
         try:
             start_date = datetime.strptime(data["start_date"], '%Y-%m-%d').date()
             end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date() if data.get('end_date') else None
         except ValueError:
             return {"error":"Invalid date format (YYYY-MM-DD)"}, 400
-
-        existing_intervals.append((start_date, end_date))
-
-        if check_date_overlap(existing_intervals):
-            return {"error":"Education dates overlap with existing records"}, 400
 
         new_edu = Education(
             profile_id = user.profile.id,
@@ -226,6 +316,7 @@ class ProfileService:
             return {"error": "Database error"}, 500
         return {"message":"Education added successfully"}, 201
 
+
     @staticmethod
     def get_user_education(user_id):
         user = User.query.get(user_id)
@@ -243,6 +334,7 @@ class ProfileService:
                 "end_date":edu.end_date.strftime('%Y-%m-%d') if edu.end_date else "Present"
             })
         return {"educations":educations}, 200
+
 
     @staticmethod
     def update_education(user_id, edu_id, data):
@@ -266,14 +358,8 @@ class ProfileService:
         except ValueError:
             return {"error":"Invalid date format (YYYY-MM-DD)"}, 400
 
-        other_intervals = [
-            (e.start_date, e.end_date)
-            for e in user.profile.educations
-            if e.id != edu.id
-        ]
-        other_intervals.append((new_start_date, new_end_date))
-        if check_date_overlap(other_intervals):
-            return {"error":"New dates overlap with existing records"}, 400
+        except ValueError:
+            return {"error":"Invalid date format (YYYY-MM-DD)"}, 400
         
         edu.start_date = new_start_date
         edu.end_date = new_end_date
@@ -288,6 +374,7 @@ class ProfileService:
             return {"error": "Database error"}, 500
 
         return {"message":"Education updated successfullly"}, 200
+
 
     @staticmethod
     def delete_education(user_id, edu_id):
@@ -311,132 +398,9 @@ class ProfileService:
         
         return {"message":"Education deleted successfully"}, 200
 
+
 # --------------------------------------------------------------------------------------------------------------
-    @staticmethod
-    def get_profile(user_id):
-        user = User.query.get(user_id)
-        if not user or not user.profile:
-            return {"error":"Profile not found"}, 404
-        
-        return {
-            "profile": {
-                "id":user.profile.id,
-                "full_name":user.profile.full_name,
-                "bio":user.profile.bio
-            },
-            "email":user.email # since profile does not have email
-        }, 200
-    
-
-    @staticmethod
-    def update_profile(user_id, data):
-        user = User.query.get(user_id)
-        if not user or not user.profile:
-            return {"error":"Profile not found"}, 404
-        
-        if "full_name" in data:
-            user.profile.full_name = data["full_name"]
-        if "bio" in data:
-            user.profile.bio = data["bio"]
-
-        try:
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-            return {"error":"Database error"}, 500
-        
-        return {"message":"Profile updated successfully"}, 200
-    
-
-    @staticmethod
-    def get_full_profile(user_id):
-        user = User.query.get(user_id)
-        if not user or not user.profile:
-            return {"error":"Profile not found"}, 404
-        
-        profile = user.profile
-        profile_data = {
-            "id": profile.id,
-            "full_name": profile.full_name, 
-            "email": user.email,
-            "bio": profile.bio
-        }
-
-        experiences = sorted( # sorting list of experiences by start data (asc)
-            profile.experiences, 
-            key=lambda x: x.start_date
-        )
-        experiences_data = [
-            {
-                "id": exp.id,
-                "company": exp.company,
-                "role": exp.role,
-                "start_date": exp.start_date.strftime('%Y-%m-%d'),
-                "end_date": exp.end_date.strftime('%Y-%m-%d') if exp.end_date else None
-            }
-            for exp in experiences
-        ]
-
-        educations = sorted(
-            profile.educations, 
-            key=lambda x: x.start_date
-        )
-        educations_data = [
-            {
-                "id": edu.id,
-                "institution": edu.institution,
-                "degree": edu.degree,
-                "description": edu.description,
-                "start_date": edu.start_date.strftime('%Y-%m-%d'),
-                "end_date": edu.end_date.strftime('%Y-%m-%d') if edu.end_date else None
-            }
-            for edu in educations
-        ]
-
-        skills_data = [{"id": skill.id, "name": skill.name} for skill in profile.skills]
-
-        projects_data = [
-            {
-                "id": p.id, "name": p.name, "role": p.role, "description": p.description, "link": p.link,
-                "start_date": p.start_date.strftime('%Y-%m-%d'),
-                "end_date": p.end_date.strftime('%Y-%m-%d') if p.end_date else None
-            } for p in profile.projects
-        ]
-
-        certifications_data = [
-            {
-                "id": c.id, "name": c.name, "issuer": c.issuer, "url": c.url,
-                "date": c.date.strftime('%Y-%m-%d')
-            } for c in profile.certifications
-        ]
-
-        courses_data = [
-            {
-                "id": c.id, "name": c.name, "institution": c.institution,
-                "date": c.date.strftime('%Y-%m-%d')
-            } for c in profile.courses
-        ]
-
-        achievements_data = [
-            {
-                "id": a.id, "title": a.title, "description": a.description,
-                "date": a.date.strftime('%Y-%m-%d')
-            } for a in profile.achievements
-        ]
-
-        return {
-            "status": "success",
-            "data": {
-                "profile": profile_data,
-                "experiences": experiences_data,
-                "educations": educations_data,
-                "projects": projects_data,
-                "certifications": certifications_data,
-                "courses": courses_data,
-                "achievements": achievements_data,
-                "skills": skills_data
-            }
-        }, 200
+    # PROJECT functions:
 
     @staticmethod
     def add_project(user_id, data):
@@ -448,12 +412,14 @@ class ProfileService:
         db.session.commit()
         return {"message": "Project added successfully", "id": item.id}, 201
 
+
     @staticmethod
     def get_user_project(user_id):
         user = User.query.get(user_id)
         if not user or not user.profile: return {"error":"Profile not found"}, 404
         items = Project.query.filter_by(profile_id=user.profile.id).all()
         return {"projects": [{c.name: getattr(item, c.name) for c in item.__table__.columns if c.name != 'profile_id'} for item in items]}, 200
+
 
     @staticmethod
     def update_project(user_id, item_id, data):
@@ -465,6 +431,7 @@ class ProfileService:
             setattr(item, k, v)
         db.session.commit()
         return {"message": "Project updated successfully"}, 200
+
 
     @staticmethod
     def delete_project(user_id, item_id):
@@ -479,6 +446,9 @@ class ProfileService:
         return {"message": "Project deleted successfully"}, 200
 
 
+# --------------------------------------------------------------------------------------------------------------
+    # CERTIFICATION functions:
+
     @staticmethod
     def add_certification(user_id, data):
         user = User.query.get(user_id)
@@ -489,12 +459,14 @@ class ProfileService:
         db.session.commit()
         return {"message": "Certification added successfully", "id": item.id}, 201
 
+
     @staticmethod
     def get_user_certification(user_id):
         user = User.query.get(user_id)
         if not user or not user.profile: return {"error":"Profile not found"}, 404
         items = Certification.query.filter_by(profile_id=user.profile.id).all()
         return {"certifications": [{c.name: getattr(item, c.name) for c in item.__table__.columns if c.name != 'profile_id'} for item in items]}, 200
+
 
     @staticmethod
     def update_certification(user_id, item_id, data):
@@ -506,6 +478,7 @@ class ProfileService:
             setattr(item, k, v)
         db.session.commit()
         return {"message": "Certification updated successfully"}, 200
+
 
     @staticmethod
     def delete_certification(user_id, item_id):
@@ -520,6 +493,9 @@ class ProfileService:
         return {"message": "Certification deleted successfully"}, 200
 
 
+# --------------------------------------------------------------------------------------------------------------
+    # COURSE functions:
+
     @staticmethod
     def add_course(user_id, data):
         user = User.query.get(user_id)
@@ -530,12 +506,14 @@ class ProfileService:
         db.session.commit()
         return {"message": "Course added successfully", "id": item.id}, 201
 
+
     @staticmethod
     def get_user_course(user_id):
         user = User.query.get(user_id)
         if not user or not user.profile: return {"error":"Profile not found"}, 404
         items = Course.query.filter_by(profile_id=user.profile.id).all()
         return {"courses": [{c.name: getattr(item, c.name) for c in item.__table__.columns if c.name != 'profile_id'} for item in items]}, 200
+
 
     @staticmethod
     def update_course(user_id, item_id, data):
@@ -547,6 +525,7 @@ class ProfileService:
             setattr(item, k, v)
         db.session.commit()
         return {"message": "Course updated successfully"}, 200
+
 
     @staticmethod
     def delete_course(user_id, item_id):
@@ -561,6 +540,9 @@ class ProfileService:
         return {"message": "Course deleted successfully"}, 200
 
 
+# --------------------------------------------------------------------------------------------------------------
+    # ACHIEVEMENT functions:
+
     @staticmethod
     def add_achievement(user_id, data):
         user = User.query.get(user_id)
@@ -571,12 +553,14 @@ class ProfileService:
         db.session.commit()
         return {"message": "Achievement added successfully", "id": item.id}, 201
 
+
     @staticmethod
     def get_user_achievement(user_id):
         user = User.query.get(user_id)
         if not user or not user.profile: return {"error":"Profile not found"}, 404
         items = Achievement.query.filter_by(profile_id=user.profile.id).all()
         return {"achievements": [{c.name: getattr(item, c.name) for c in item.__table__.columns if c.name != 'profile_id'} for item in items]}, 200
+
 
     @staticmethod
     def update_achievement(user_id, item_id, data):
@@ -588,6 +572,7 @@ class ProfileService:
             setattr(item, k, v)
         db.session.commit()
         return {"message": "Achievement updated successfully"}, 200
+
 
     @staticmethod
     def delete_achievement(user_id, item_id):

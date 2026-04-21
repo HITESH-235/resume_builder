@@ -16,15 +16,13 @@ class Profile(db.Model):
     full_name = db.Column(db.String(100))
     bio = db.Column(db.Text)
 
-    # one-to-many: 1 profile -> many experiences
-    experiences = db.relationship("Experience", backref="profile", lazy=True)
+    # many-to-many relationship: since one profile has many skill and vice versa
+    skills = db.relationship("Skill", secondary=profile_skills, backref="profiles") # the secondary table is used in many-many rels
 
-    # one-to-many: 1 profile -> many educations
+    # all one to one relationships:
+    experiences = db.relationship("Experience", backref="profile", lazy=True)
     educations = db.relationship("Education", backref="profile", cascade="all, delete-orphan")
     projects = db.relationship("Project", backref="profile", cascade="all, delete-orphan")
     certifications = db.relationship("Certification", backref="profile", cascade="all, delete-orphan")
     courses = db.relationship("Course", backref="profile", cascade="all, delete-orphan")
     achievements = db.relationship("Achievement", backref="profile", cascade="all, delete-orphan")
-
-    # many-to-many: profile <-> skills
-    skills = db.relationship("Skill", secondary=profile_skills, backref="profiles")

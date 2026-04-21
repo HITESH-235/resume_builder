@@ -5,7 +5,8 @@ from .controller import ProfileController
 profile_bp = Blueprint('profile', __name__)
 
 
-# Routes for *fetching and *updating profile info:
+# ------------------------------------------------------------------------------------
+# PROFILE routes:
 @profile_bp.route('', methods=["GET"])
 @jwt_required()
 def get_profile():
@@ -16,13 +17,22 @@ def get_profile():
 def update_profile():
     return ProfileController.update_profile()
 
-@profile_bp.route('/full', methods=["GET"])
+
+# ------------------------------------------------------------------------------------
+# SKILLS routes:
+@profile_bp.route('/skills', methods=["POST"])
 @jwt_required()
-def get_full_profile():
-    return ProfileController.get_full_profile()
+def add_skills():
+    return ProfileController.add_skills()
+
+@profile_bp.route('/skills/<int:skill_id>', methods=["DELETE"])
+@jwt_required()
+def delete_skill(skill_id):
+    return ProfileController.delete_skill(skill_id)
 
 
-# Routes for *adding, *fetching(all), *updating(exp_id), *deleting(exp_id) EXPeriences:
+# ------------------------------------------------------------------------------------
+# EXPERIENCE routes:
 @profile_bp.route('/experience', methods=["POST"])
 @jwt_required()
 def add_exp():
@@ -44,6 +54,8 @@ def delete_exp(exp_id):
     return ProfileController.delete_experience(exp_id)
 
 
+# ------------------------------------------------------------------------------------
+# EDUCATION routes:
 @profile_bp.route('/education', methods=["POST"])
 @jwt_required()
 def add_edu():
@@ -65,17 +77,8 @@ def delete_edu(edu_id):
     return ProfileController.delete_education(edu_id)
 
 
-
-@profile_bp.route('/skills', methods=["POST"])
-@jwt_required()
-def add_skills():
-    return ProfileController.add_skills()
-
-@profile_bp.route('/skills/<int:skill_id>', methods=["DELETE"])
-@jwt_required()
-def delete_skill(skill_id):
-    return ProfileController.delete_skill(skill_id)
-
+# ------------------------------------------------------------------------------------
+# PROJECT routes:
 @profile_bp.route('/project', methods=['POST'])
 @jwt_required()
 def add_project():
@@ -96,6 +99,9 @@ def update_project(item_id):
 def delete_project(item_id):
     return ProfileController.delete_project(item_id)
 
+
+# ------------------------------------------------------------------------------------
+# CERTIFICATION routes:
 @profile_bp.route('/certification', methods=['POST'])
 @jwt_required()
 def add_certification():
@@ -116,6 +122,9 @@ def update_certification(item_id):
 def delete_certification(item_id):
     return ProfileController.delete_certification(item_id)
 
+
+# ------------------------------------------------------------------------------------
+# COURSE routes:
 @profile_bp.route('/course', methods=['POST'])
 @jwt_required()
 def add_course():
@@ -136,6 +145,9 @@ def update_course(item_id):
 def delete_course(item_id):
     return ProfileController.delete_course(item_id)
 
+
+# ------------------------------------------------------------------------------------
+# ACHIEVEMENT routes:
 @profile_bp.route('/achievement', methods=['POST'])
 @jwt_required()
 def add_achievement():

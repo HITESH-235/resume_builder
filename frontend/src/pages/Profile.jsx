@@ -22,6 +22,8 @@ const Profile = () => {
   const [newCourse, setNewCourse] = useState({ name: '', institution: '', date: '' });
   const [newAchievement, setNewAchievement] = useState({ title: '', description: '', date: '' });
 
+  const [personalInfo, setPersonalInfo] = useState({ full_name: '', bio: '' });
+
   useEffect(() => {
     // Fetches profile data on component mount
     fetchData();
@@ -29,7 +31,7 @@ const Profile = () => {
 
   const fetchData = async () => {
     try {
-      const fullRes = await api.get('/profile/full');
+      const fullRes = await api.get('/profile');
       const data = fullRes.data.data;
       setProfile(data.profile || {});
       setExperiences(data.experiences || []);
@@ -39,6 +41,10 @@ const Profile = () => {
       setCertifications(data.certifications || []);
       setCourses(data.courses || []);
       setAchievements(data.achievements || []);
+      setPersonalInfo({
+        full_name: data.profile?.full_name || '',
+        bio: data.profile?.bio || ''
+      });
     } catch (err) {
       console.error(err);
     }
@@ -57,19 +63,25 @@ const Profile = () => {
   };
 
   const handleDeleteSkill = async (id) => {
+    // Optimistic Update: Remove from UI immediately
+    setSkills(prev => prev.filter(s => s.id !== id));
     try {
       await api.delete(`/profile/skills/${id}`);
-      fetchData();
+      // No need to fetchData() unless we want to sync with server-side auto-generated fields
     } catch (err) {
       console.error(err);
+      fetchData(); // Rollback on error
     }
   };
 
   const handleAddExp = async (e) => {
     e.preventDefault();
     try {
+      if (newExp.end_date && new Date(newExp.start_date) > new Date(newExp.end_date)) {
+        alert("Start date cannot be after the end date.");
+        return;
+      }
       const expData = { ...newExp };
-      // Ensures end_date is null for current experiences
       if (!expData.end_date) expData.end_date = null;
       await api.post('/profile/experience', expData);
       setNewExp({ company: '', role: '', start_date: '', end_date: '' });
@@ -80,17 +92,22 @@ const Profile = () => {
   };
 
   const handleDeleteExp = async (id) => {
+    setExperiences(prev => prev.filter(e => e.id !== id));
     try {
       await api.delete(`/profile/experience/${id}`);
-      fetchData();
     } catch (err) {
       console.error(err);
+      fetchData();
     }
   };
 
   const handleAddEdu = async (e) => {
     e.preventDefault();
     try {
+      if (newEdu.end_date && new Date(newEdu.start_date) > new Date(newEdu.end_date)) {
+        alert("Start date cannot be after the end date.");
+        return;
+      }
       const eduData = { ...newEdu };
       if (!eduData.end_date) eduData.end_date = null;
       await api.post('/profile/education', eduData);
@@ -102,17 +119,22 @@ const Profile = () => {
   };
 
   const handleDeleteEdu = async (id) => {
+    setEducations(prev => prev.filter(e => e.id !== id));
     try {
       await api.delete(`/profile/education/${id}`);
-      fetchData();
     } catch (err) {
       console.error(err);
+      fetchData();
     }
   };
 
   const handleAddProject = async (e) => {
     e.preventDefault();
     try {
+      if (newProject.end_date && new Date(newProject.start_date) > new Date(newProject.end_date)) {
+        alert("Start date cannot be after the end date.");
+        return;
+      }
       const pData = { ...newProject };
       if (!pData.end_date) pData.end_date = null;
       await api.post('/profile/project', pData);
@@ -122,7 +144,8 @@ const Profile = () => {
   };
 
   const handleDeleteProject = async (id) => {
-    try { await api.delete(`/profile/project/${id}`); fetchData(); } catch (err) { console.error(err); }
+    setProjects(prev => prev.filter(p => p.id !== id));
+    try { await api.delete(`/profile/project/${id}`); } catch (err) { console.error(err); fetchData(); }
   };
 
   const handleAddCert = async (e) => {
@@ -135,7 +158,8 @@ const Profile = () => {
   };
 
   const handleDeleteCert = async (id) => {
-    try { await api.delete(`/profile/certification/${id}`); fetchData(); } catch (err) { console.error(err); }
+    setCertifications(prev => prev.filter(c => c.id !== id));
+    try { await api.delete(`/profile/certification/${id}`); } catch (err) { console.error(err); fetchData(); }
   };
 
   const handleAddCourse = async (e) => {
@@ -148,7 +172,8 @@ const Profile = () => {
   };
 
   const handleDeleteCourse = async (id) => {
-    try { await api.delete(`/profile/course/${id}`); fetchData(); } catch (err) { console.error(err); }
+    setCourses(prev => prev.filter(c => c.id !== id));
+    try { await api.delete(`/profile/course/${id}`); } catch (err) { console.error(err); fetchData(); }
   };
 
   const handleAddAchievement = async (e) => {
@@ -161,7 +186,19 @@ const Profile = () => {
   };
 
   const handleDeleteAchievement = async (id) => {
-    try { await api.delete(`/profile/achievement/${id}`); fetchData(); } catch (err) { console.error(err); }
+    setAchievements(prev => prev.filter(a => a.id !== id));
+    try { await api.delete(`/profile/achievement/${id}`); } catch (err) { console.error(err); fetchData(); }
+  };
+
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    try {
+      await api.put('/profile', personalInfo);
+      alert('Profile updated successfully!');
+      fetchData();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   return (
@@ -169,6 +206,33 @@ const Profile = () => {
       <h1 className="text-gradient">Your Profile</h1>
 
       <div className="profile-grid">
+        {/* ── Row 0: Personal Info (Full Width) ── */}
+        <div className="glass-panel profile-card profile-card-full personal-info-card">
+          <h2>Personal Information</h2>
+          <form onSubmit={handleUpdateProfile} className="personal-info-form">
+            <div className="info-inputs">
+              <div className="input-group">
+                <label>Full Name</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. Hitesh Sinha" 
+                  value={personalInfo.full_name} 
+                  onChange={e => setPersonalInfo({ ...personalInfo, full_name: e.target.value })} 
+                />
+              </div>
+              <div className="input-group">
+                <label>Professional Bio</label>
+                <textarea 
+                  placeholder="Tell us about yourself..." 
+                  value={personalInfo.bio} 
+                  onChange={e => setPersonalInfo({ ...personalInfo, bio: e.target.value })} 
+                  rows={3}
+                />
+              </div>
+            </div>
+            <button type="submit" className="btn btn-primary save-btn">Save Profile Changes</button>
+          </form>
+        </div>
 
         {/* ── Row 1: Small Sections (2 columns each) ── */}
         <div className="glass-panel profile-card card-skill">

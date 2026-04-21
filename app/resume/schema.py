@@ -5,12 +5,12 @@ class ResumeCreateSchema(Schema):
     name = fields.Str()
     summary = fields.Str()
 
-class AddExperienceSchema(Schema):
-    experience_id = fields.Int(required=True)
-    order = fields.Int(required=True)
-
 class AddSkillSchema(Schema):
     skill_id = fields.Int(required=True)
+    order = fields.Int(required=True)
+
+class AddExperienceSchema(Schema):
+    experience_id = fields.Int(required=True)
     order = fields.Int(required=True)
 
 class AddEducationSchema(Schema):
