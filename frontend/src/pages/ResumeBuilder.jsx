@@ -1,7 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import html2pdf from 'html2pdf.js';
-import { GripVertical } from 'lucide-react';
+import { 
+  GripVertical, 
+  FileText, 
+  User,
+  Plus, 
+  Trash2, 
+  Grid,
+  Mail,
+  Phone,
+  MapPin,
+  ChevronDown,
+  ChevronUp,
+  Columns,
+  Globe,
+  Link as LinkIcon
+} from 'lucide-react';
 import api from '../api/axios';
 import './ResumeBuilder.css';
 
@@ -17,17 +32,33 @@ const ResumeBuilder = () => {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [location, setLocation] = useState('');
-  const [profileData, setProfileData] = useState({ experiences: [], educations: [], skills: [], projects: [], certifications: [], courses: [], achievements: [] });
+  const [website, setWebsite] = useState('');
+  const [websiteLabel, setWebsiteLabel] = useState('');
+  const [profileData, setProfileData] = useState({ 
+    experiences: [], 
+    educations: [], 
+    skills: [], 
+    projects: [], 
+    certifications: [], 
+    courses: [], 
+    achievements: [],
+    custom_items: [] 
+  });
   const [loading, setLoading] = useState(true);
   const [isPrinting, setIsPrinting] = useState(false);
   const [profileBio, setProfileBio] = useState('');
+  const [activeTab, setActiveTab] = useState('Layout'); // 'Layout' or 'Content'
   
-  // Drag and drop state
+  // Drag and drop state for items
   const [draggingItem, setDraggingItem] = useState(null);
   const [dragOverSection, setDragOverSection] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
   const [canDrag, setCanDrag] = useState(false);
   
+  // Drag and drop state for layout sections
+  const [draggingSection, setDraggingSection] = useState(null);
+  const [tempSplit, setTempSplit] = useState(50);
+
   const printRef = useRef();
 
   useEffect(() => {
@@ -41,23 +72,30 @@ const ResumeBuilder = () => {
         api.get('/profile')
       ]);
       setResume(resRes.data);
-      setName(resRes.data.name || resRes.data.title || '');
-      setTitle(resRes.data.title || '');
-      setSummary(resRes.data.summary || '');
-      setDesignation(resRes.data.designation || '');
-      setEmail(resRes.data.email || '');
-      setPhone(resRes.data.phone || '');
-      setLocation(resRes.data.location || '');
+      const r = resRes.data;
+      setName(r.name || r.title || '');
+      setTitle(r.title || '');
+      setSummary(r.summary || '');
+      setDesignation(r.designation || '');
+      setEmail(r.email || '');
+      setPhone(r.phone || '');
+      setLocation(r.location || '');
+      setWebsite(r.website || '');
+      setWebsiteLabel(r.website_label || '');
+      setTempSplit(r.layout_config?.column_split || 50);
+      
+      const p = profRes.data.data;
       setProfileData({
-        experiences: profRes.data.data.experiences || [],
-        educations: profRes.data.data.educations || [],
-        skills: profRes.data.data.skills || [],
-        projects: profRes.data.data.projects || [],
-        certifications: profRes.data.data.certifications || [],
-        courses: profRes.data.data.courses || [],
-        achievements: profRes.data.data.achievements || []
+        experiences: p.experiences || [],
+        educations: p.educations || [],
+        skills: p.skills || [],
+        projects: p.projects || [],
+        certifications: p.certifications || [],
+        courses: p.courses || [],
+        achievements: p.achievements || [],
+        custom_items: p.custom_items || []
       });
-      setProfileBio(profRes.data.data.profile?.bio || '');
+      setProfileBio(p.profile?.bio || '');
     } catch (err) {
       console.error(err);
       if (err.response?.status === 404) navigate('/');
@@ -66,62 +104,175 @@ const ResumeBuilder = () => {
     }
   };
 
-  // --- Drag and Drop Handlers ---
-  
-  const handleDragStart = (e, item, type, index) => {
-    // Robust Check: Only allow drag if the mouse was pressed on the handle
-    if (!canDrag) {
-      e.preventDefault();
-      return;
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    const parts = dateStr.split(' ')[0].split('-');
+    return parts.length >= 2 ? `${parts[1]}-${parts[0]}` : dateStr;
+  };
+
+  // --- Handlers ---
+  const handleUpdateMetadata = async () => {
+    try {
+      await api.put(`/resume/${id}`, { 
+        title, name, summary, designation, email, phone, location, website, website_label: websiteLabel 
+      });
+    } catch (err) { console.error(err); }
+  };
+
+  const handleAddSection = (type) => {
+    // Deep copy to ensure nested arrays are new references
+    const newConfig = resume.layout_config ? JSON.parse(JSON.stringify(resume.layout_config)) : { rows: [{ columns: [{ sections: [] }] }] };
+    
+    let added = false;
+    if (newConfig.rows && newConfig.rows.length > 0) {
+      for (const row of newConfig.rows) {
+        for (const col of row.columns) {
+          if (!col.sections.includes(type)) {
+            col.sections.push(type);
+            added = true;
+            break;
+          }
+        }
+        if (added) break;
+      }
     }
+
+    if (!added) {
+      if (!newConfig.rows) newConfig.rows = [];
+      newConfig.rows.push({
+        columns: [{ sections: [type] }]
+      });
+    }
+
+    // Sync active_sections as well
+    const activeSections = [];
+    newConfig.rows.forEach(r => r.columns.forEach(c => c.sections.forEach(s => activeSections.push(s))));
+    
+    handleUpdateLayout(newConfig, activeSections);
+  };
+
+  const handleUpdateLayout = async (newConfig, activeSections) => {
+    try {
+      const payload = { layout_config: newConfig };
+      if (activeSections) payload.active_sections = activeSections;
+      
+      await api.put(`/resume/${id}`, payload);
+      setResume(prev => ({ ...prev, layout_config: newConfig, active_sections: activeSections || prev.active_sections }));
+    } catch (err) { console.error(err); }
+  };
+
+  const handleAddGeneric = async (type, payload) => {
+    try {
+      // Optimistically update UI
+      const listKey = type === 'custom_item' ? 'custom_items' : type + 's';
+      if (resume[listKey]) {
+         // We don't have the full item yet, but we can set a loading state if needed
+      }
+      
+      const res = await api.post(`/resume/${id}/${type.replace('_', '-')}`, payload);
+      if (res.status === 201 || res.status === 200) {
+        await fetchData();
+      }
+    } catch (err) { 
+      console.error(err);
+      alert(err.response?.data?.error || "Failed to add item");
+    }
+  };
+
+  const handleRemoveGeneric = async (type, itemId) => {
+    try {
+      await api.delete(`/resume/${id}/${type.replace('_', '-')}/${itemId}`);
+      await fetchData();
+    } catch (err) { 
+      console.error(err);
+      alert(err.response?.data?.error || "Failed to remove item");
+    }
+  };
+
+  // --- Layout Manager Helpers ---
+  const addRow = () => {
+    const newLayout = resume.layout_config ? JSON.parse(JSON.stringify(resume.layout_config)) : { rows: [], column_split: 50 };
+    if (!newLayout.rows) newLayout.rows = [];
+    newLayout.rows.push({ columns: [{ sections: [] }] });
+    handleUpdateLayout(newLayout);
+  };
+
+  const removeRow = (idx) => {
+    if (!resume.layout_config) return;
+    const newLayout = JSON.parse(JSON.stringify(resume.layout_config));
+    newLayout.rows.splice(idx, 1);
+    handleUpdateLayout(newLayout);
+  };
+
+  const toggleRowColumns = (rowIdx) => {
+    if (!resume.layout_config) return;
+    const newLayout = JSON.parse(JSON.stringify(resume.layout_config));
+    const row = newLayout.rows[rowIdx];
+    if (row.columns.length < 2) {
+      // Split
+      row.columns.push({ sections: [] });
+    } else {
+      // Merge: move sections from second column to first column
+      const secondColSections = row.columns[1].sections || [];
+      row.columns[0].sections = [...row.columns[0].sections, ...secondColSections];
+      row.columns.splice(1, 1);
+    }
+    handleUpdateLayout(newLayout);
+  };
+
+  const removeColumn = (rowIdx, colIdx) => {
+    if (!resume.layout_config) return;
+    const newLayout = JSON.parse(JSON.stringify(resume.layout_config));
+    newLayout.rows[rowIdx].columns.splice(colIdx, 1);
+    if (newLayout.rows[rowIdx].columns.length === 0) {
+      newLayout.rows.splice(rowIdx, 1);
+    }
+    handleUpdateLayout(newLayout);
+  };
+
+  const removeSectionFromLayout = (rowIdx, colIdx, secIdx) => {
+    if (!resume.layout_config) return;
+    const newLayout = JSON.parse(JSON.stringify(resume.layout_config));
+    newLayout.rows[rowIdx].columns[colIdx].sections.splice(secIdx, 1);
+    handleUpdateLayout(newLayout);
+  };
+
+  // --- Drag and Drop for Items ---
+  const handleDragStart = (e, item, type, index) => {
+    if (!canDrag) { e.preventDefault(); return; }
     setDraggingItem({ item, type, index });
-    // Reset switch for next time
+    // Don't reset canDrag here, it will be reset on dragEnd or mouseUp
+  };
+
+  const handleDragEnd = () => {
+    setDraggingItem(null);
+    setDragOverSection(null);
+    setDragOverIndex(null);
     setCanDrag(false);
   };
 
   const handleDragOver = (e, sectionType, index = null) => {
     e.preventDefault();
-    // Only update state if something actually changed to prevent lag/stutter
-    if (dragOverSection !== sectionType) {
-      setDragOverSection(sectionType);
-    }
-    if (index !== null && dragOverIndex !== index) {
-      setDragOverIndex(index);
-    }
+    if (dragOverSection !== sectionType) setDragOverSection(sectionType);
+    if (index !== null && dragOverIndex !== index) setDragOverIndex(index);
   };
 
-  const handleDrop = async (e, targetSection, targetIndex) => {
+  const handleDrop = async (e, type, targetIndex, customTitle = null) => {
     e.preventDefault();
-    if (!draggingItem) return;
+    if (!draggingItem || draggingItem.type !== type) {
+      setDragOverSection(null);
+      setDragOverIndex(null);
+      return;
+    }
 
-    const { item, type, index: sourceIndex } = draggingItem;
-    
-    // Reset states
-    setDraggingItem(null);
-    setDragOverSection(null);
-    setDragOverIndex(null);
+    const sourceIndex = draggingItem.index;
+    if (sourceIndex === targetIndex) {
+      setDragOverSection(null);
+      setDragOverIndex(null);
+      return;
+    }
 
-    // If dropped in a different section type, ignore
-    if (type !== targetSection) return;
-    
-    // If dropped in the same position, ignore
-    if (sourceIndex === targetIndex) return;
-
-    // --- OPTIMISTIC UI: Reorder state immediately ---
-    const listKey = type + 's';
-    const items = [...resume[listKey]];
-    const [movedItem] = items.splice(sourceIndex, 1);
-    items.splice(targetIndex, 0, movedItem);
-
-    // Update local state so it feels "instant"
-    setResume(prev => ({
-      ...prev,
-      [listKey]: items
-    }));
-
-    // --- SYNC WITH BACKEND ---
     try {
-      const orderedIds = items.map(i => i.id);
       const endpointMap = {
         experience: 'experience/order',
         skill: 'skill/order',
@@ -129,152 +280,83 @@ const ResumeBuilder = () => {
         project: 'project/reorder',
         certification: 'certification/reorder',
         course: 'course/reorder',
-        achievement: 'achievement/reorder'
+        achievement: 'achievement/reorder',
+        custom_item: 'custom-item/order'
       };
-      
+
+      const pluralMap = {
+        experience: 'experiences',
+        skill: 'skills',
+        education: 'educations',
+        project: 'projects',
+        certification: 'certifications',
+        course: 'courses',
+        achievement: 'achievements'
+      };
+
+      const plural = pluralMap[type];
+      let orderedIds;
+
+      if (type === 'custom_item' && customTitle) {
+        const allItems = [...(resume.custom_items || [])];
+        const otherItems = allItems.filter(i => i.title !== customTitle);
+        const sectionItems = allItems.filter(i => i.title === customTitle);
+        
+        const [movedItem] = sectionItems.splice(sourceIndex, 1);
+        sectionItems.splice(targetIndex, 0, movedItem);
+        
+        // Combine back to maintain global order if needed, 
+        // but backend usually just needs the IDs for the affected section.
+        orderedIds = sectionItems.map(item => item.id);
+      } else {
+        const items = [...(resume[plural] || [])];
+        const [movedItem] = items.splice(sourceIndex, 1);
+        items.splice(targetIndex, 0, movedItem);
+        orderedIds = items.map(item => item.id);
+      }
+
       await api.put(`/resume/${id}/${endpointMap[type]}`, { ordered_ids: orderedIds });
-      // fetchData() is called to ensure all IDs and orders are perfectly in sync with DB
-      fetchData(); 
+      fetchData();
     } catch (err) {
-      console.error('Reorder failed', err);
-      fetchData(); // Rollback on failure
+      console.error("Reorder failed:", err);
     }
+    setDragOverSection(null);
+    setDragOverIndex(null);
   };
 
-  const handleAddSkill = async (skill_id) => {
-    try {
-      const currentSkills = resume.skills || [];
-      const order = currentSkills.length;
-      await api.post(`/resume/${id}/skill`, { skill_id, order });
-      fetchData();
-    } catch (err) { console.error(err); }
+  // --- Drag and Drop for Sections (Layout) ---
+  const handleSectionDragStart = (e, sectionName, sourceRow = null, sourceCol = null, sourceIdx = null) => {
+    setDraggingSection({ name: sectionName, r: sourceRow, c: sourceCol, i: sourceIdx });
   };
 
-  const handleRemoveSkill = async (skill_id) => {
-    setResume(prev => ({
-      ...prev,
-      skills: prev.skills.filter(s => s.id !== skill_id)
-    }));
-    try {
-      await api.delete(`/resume/${id}/skill/${skill_id}`);
-    } catch (err) { console.error(err); fetchData(); }
-  };
-
-  const handleAddExp = async (experience_id) => {
-    try {
-      const currentExps = resume.experiences || [];
-      const order = currentExps.length;
-      await api.post(`/resume/${id}/experience`, { experience_id, order });
-      fetchData();
-    } catch (err) { console.error(err); }
-  };
-
-  const handleRemoveExp = async (experience_id) => {
-    setResume(prev => ({
-      ...prev,
-      experiences: prev.experiences.filter(e => e.id !== experience_id)
-    }));
-    try {
-      await api.delete(`/resume/${id}/experience/${experience_id}`);
-    } catch (err) { console.error(err); fetchData(); }
-  };
-
-  const handleAddEdu = async (education_id) => {
-    try {
-      const currentEdus = resume.educations || [];
-      const order = currentEdus.length;
-      await api.post(`/resume/${id}/education`, { education_id, order });
-      fetchData();
-    } catch (err) { console.error(err); }
-  };
-
-  const handleRemoveEdu = async (education_id) => {
-    setResume(prev => ({
-      ...prev,
-      educations: prev.educations.filter(e => e.id !== education_id)
-    }));
-    try { await api.delete(`/resume/${id}/education/${education_id}`); } catch (err) { console.error(err); fetchData(); }
-  };
-
-  const handleAddProject = async (project_id) => {
-    try {
-      const current = resume.projects || [];
-      const order = current.length;
-      await api.post(`/resume/${id}/project`, { project_id, order });
-      fetchData();
-    } catch (err) { console.error(err); }
-  };
-  const handleRemoveProject = async (project_id) => {
-    setResume(prev => ({
-      ...prev,
-      projects: prev.projects.filter(p => p.id !== project_id)
-    }));
-    try { await api.delete(`/resume/${id}/project/${project_id}`); } catch (err) { console.error(err); fetchData(); }
-  };
-
-  const handleAddCert = async (certification_id) => {
-    try {
-      const current = resume.certifications || [];
-      const order = current.length;
-      await api.post(`/resume/${id}/certification`, { certification_id, order });
-      fetchData();
-    } catch (err) { console.error(err); }
-  };
-  const handleRemoveCert = async (certification_id) => {
-    setResume(prev => ({
-      ...prev,
-      certifications: prev.certifications.filter(c => c.id !== certification_id)
-    }));
-    try { await api.delete(`/resume/${id}/certification/${certification_id}`); } catch (err) { console.error(err); fetchData(); }
-  };
-
-  const handleAddCourse = async (course_id) => {
-    try {
-      const current = resume.courses || [];
-      const order = current.length;
-      await api.post(`/resume/${id}/course`, { course_id, order });
-      fetchData();
-    } catch (err) { console.error(err); }
-  };
-  const handleRemoveCourse = async (course_id) => {
-    setResume(prev => ({
-      ...prev,
-      courses: prev.courses.filter(c => c.id !== course_id)
-    }));
-    try { await api.delete(`/resume/${id}/course/${course_id}`); } catch (err) { console.error(err); fetchData(); }
-  };
-
-  const handleAddAchievement = async (achievement_id) => {
-    try {
-      const current = resume.achievements || [];
-      const order = current.length;
-      await api.post(`/resume/${id}/achievement`, { achievement_id, order });
-      fetchData();
-    } catch (err) { console.error(err); }
-  };
-  const handleRemoveAchievement = async (achievement_id) => {
-    setResume(prev => ({
-      ...prev,
-      achievements: prev.achievements.filter(a => a.id !== achievement_id)
-    }));
-    try { await api.delete(`/resume/${id}/achievement/${achievement_id}`); } catch (err) { console.error(err); fetchData(); }
-  };
-
-  const handleUpdateMetadata = async () => {
-    if (!title.trim()) return;
-    try {
-      await api.put(`/resume/${id}`, { title, name, summary, designation, email, phone, location });
-    } catch (err) {
-      console.error('Failed to update resume metadata', err);
+  const handleSectionDrop = (targetRowIdx, targetColIdx, targetSecIdx = null) => {
+    if (!draggingSection) return;
+    const newLayout = resume.layout_config ? JSON.parse(JSON.stringify(resume.layout_config)) : { rows: [{ columns: [{ sections: [] }, { sections: [] }] }], column_split: 50 };
+    
+    // 1. Remove from source position if it was already in layout
+    if (draggingSection.r !== null) {
+      newLayout.rows[draggingSection.r].columns[draggingSection.c].sections.splice(draggingSection.i, 1);
+    } else {
+      // If it's a new section from the bottom lists, remove any existing instance (move instead of copy)
+      newLayout.rows.forEach(r => r.columns.forEach(c => {
+        c.sections = (c.sections || []).filter(s => s !== draggingSection.name);
+      }));
     }
-  };
-
-  const handleUseProfileBio = () => {
-    if (!profileBio) {
-      alert('No bio found in profile. Please set it in your Profile page.');
-      return;
+    
+    // 2. Add to target position
+    const targetCol = newLayout.rows[targetRowIdx].columns[targetColIdx];
+    if (targetSecIdx !== null) {
+      targetCol.sections.splice(targetSecIdx, 0, draggingSection.name);
+    } else {
+      targetCol.sections.push(draggingSection.name);
     }
-    setSummary(profileBio);
+    
+    // 3. Re-calculate active sections
+    const activeSections = [];
+    newLayout.rows.forEach(r => r.columns.forEach(c => c.sections.forEach(s => activeSections.push(s))));
+    
+    handleUpdateLayout(newLayout, activeSections);
+    setDraggingSection(null);
   };
 
   const handleDownloadPdf = () => {
@@ -282,502 +364,402 @@ const ResumeBuilder = () => {
     setIsPrinting(true);
     setTimeout(() => {
       const opt = {
-        margin: 15,
-        filename: `${(resume.title || 'Resume').replace(/\s+/g, '_')}_Resume.pdf`,
-        image: { type: 'jpeg', quality: 1.0 },
-        html2canvas: { scale: 3, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0 },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+        margin: 10,
+        filename: `${name || 'Resume'}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
-      html2pdf().from(element).set(opt).save().then(() => {
-        setIsPrinting(false);
-      });
-    }, 100);
+      html2pdf().from(element).set(opt).save().then(() => setIsPrinting(false));
+    }, 500);
   };
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '';
-    if (dateStr === 'Present') return 'Present';
-    return dateStr.split(' ')[0];
-  };
-
-  if (loading) return <div className="loading-screen">Loading Resume...</div>;
+  if (loading) return <div className="loading-screen">Loading...</div>;
   if (!resume) return <div className="error-screen">Resume not found.</div>;
 
-  const addedSkillIds = new Set((resume.skills || []).map(s => s.id));
-  const addedExpIds = new Set((resume.experiences || []).map(e => e.id));
-  const addedEduIds = new Set((resume.educations || []).map(e => e.id));
-  const addedProjectIds = new Set((resume.projects || []).map(p => p.id));
-  const addedCertIds = new Set((resume.certifications || []).map(c => c.id));
-  const addedCourseIds = new Set((resume.courses || []).map(c => c.id));
-  const addedAchievementIds = new Set((resume.achievements || []).map(a => a.id));
-
-  const availableSkills = profileData.skills.filter(s => !addedSkillIds.has(s.id));
-  const availableExps = profileData.experiences.filter(e => !addedExpIds.has(e.id));
-  const availableEdus = profileData.educations.filter(e => !addedEduIds.has(e.id));
-  const availableProjects = profileData.projects.filter(p => !addedProjectIds.has(p.id));
-  const availableCerts = profileData.certifications.filter(c => !addedCertIds.has(c.id));
-  const availableCourses = profileData.courses.filter(c => !addedCourseIds.has(c.id));
-  const availableAchievements = profileData.achievements.filter(a => !addedAchievementIds.has(a.id));
-
-  const getSectionClass = (type) => {
-    if (!draggingItem) return "resume-section";
-    if (dragOverSection === type) {
-      return draggingItem.type === type ? "resume-section valid-drop" : "resume-section invalid-drop";
-    }
-    return "resume-section";
+  const handleImportBio = () => {
+    setSummary(profileBio);
+    handleUpdateMetadata();
   };
 
-  return (
-    <div className="builder-container animate-fade-in">
-      <div className="builder-header">
-        <div className="builder-heading-group">
-          <div className="builder-heading-label">Resume Heading</div>
-          <input
-            className="builder-heading-input"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            onBlur={handleUpdateMetadata}
-            placeholder="e.g. Backend Dev Resume..."
-          />
+  const renderSection = (type) => {
+    // Check if it's a dynamic custom section (prefixed with 'custom:')
+    if (type.startsWith('custom:')) {
+      const sectionTitle = type.split('custom:')[1];
+      const items = (resume.custom_items || []).filter(item => item.title === sectionTitle);
+      if (items.length === 0) return null;
+
+      return (
+        <div key={type} className={`resume-section ${dragOverSection === 'custom_item' ? 'valid-drop' : ''}`} onDragOver={(e) => handleDragOver(e, 'custom_item')} onDrop={(e) => handleDrop(e, 'custom_item', items.length, sectionTitle)}>
+          <h3>{sectionTitle}</h3>
+          {items.map((item, idx) => {
+            const details = getItemDetails(item, 'custom_item');
+            return (
+              <div key={item.id} className={`resume-item draggable-item ${draggingItem?.type === 'custom_item' && draggingItem?.item.id === item.id ? 'dragging' : ''} ${dragOverSection === 'custom_item' && dragOverIndex === idx ? 'drag-over-item' : ''}`} draggable onDragStart={(e) => handleDragStart(e, item, 'custom_item', idx)} onDragEnd={handleDragEnd} onDragOver={(e) => handleDragOver(e, 'custom_item', idx)} onDrop={(e) => { e.stopPropagation(); handleDrop(e, 'custom_item', idx, sectionTitle); }}>
+                <div className="item-header">
+                  <div style={{display:'flex', alignItems:'center', gap:'4px', width:'100%'}}>
+                    {!isPrinting && <GripVertical className="drag-handle-icon" size={16} onMouseDown={() => setCanDrag(true)} />}
+                    <h4 className="resume-item-title-row">
+                      <span className="title-text">{details.title}</span>
+                      {details.subtitle && (
+                        <>
+                          <span className="title-separator"> | </span>
+                          <span className="subtitle-text">{details.subtitle}</span>
+                        </>
+                      )}
+                    </h4>
+                  </div>
+                </div>
+                {(item.start_date || item.end_date) && <div className="date-text">{formatDate(item.start_date)} - {formatDate(item.end_date)}</div>}
+                {item.description && <p>{item.description}</p>}
+              </div>
+            );
+          })}
         </div>
-        <div style={{ display: 'flex', gap: '1rem' }}>
+      );
+    }
+
+    const data = resume[type] || [];
+    if (data.length === 0 && type !== 'summary') return null;
+
+    switch(type) {
+      case 'summary':
+        return (
+          <div className="resume-section" key="summary">
+            <div className="resume-section-header">
+              <h3>Professional Summary</h3>
+              {!isPrinting && (
+                <button className="import-bio-btn" onClick={handleImportBio} title="Import bio from your profile">
+                  <FileText size={12} /> Use Bio
+                </button>
+              )}
+            </div>
+            <div className="summary-wrapper" data-replicated-value={summary}>
+              <textarea 
+                className="resume-summary-input" 
+                value={summary} 
+                onChange={e => setSummary(e.target.value)} 
+                onBlur={handleUpdateMetadata} 
+                rows={1}
+                placeholder="Write your professional summary here..."
+              />
+            </div>
+          </div>
+        );
+      case 'skills':
+        return (
+          <div key="skills" className={`resume-section ${dragOverSection === 'skill' ? 'valid-drop' : ''}`} onDragOver={(e) => handleDragOver(e, 'skill')} onDrop={(e) => handleDrop(e, 'skill', data.length)}>
+            <h3>Skills</h3>
+            <div className="skills-list">
+              {data.map((s, idx) => (
+                <span key={s.id} className={`resume-skill-tag draggable-item ${draggingItem?.type === 'skill' && draggingItem?.item.id === s.id ? 'dragging' : ''} ${dragOverSection === 'skill' && dragOverIndex === idx ? 'drag-over-item' : ''}`} draggable onDragStart={(e) => handleDragStart(e, s, 'skill', idx)} onDragEnd={handleDragEnd} onDragOver={(e) => handleDragOver(e, 'skill', idx)} onDrop={(e) => { e.stopPropagation(); handleDrop(e, 'skill', idx); }}>
+                  {!isPrinting && <GripVertical className="drag-handle-icon" size={14} onMouseDown={() => setCanDrag(true)} />}
+                  {s.name}
+                </span>
+              ))}
+            </div>
+          </div>
+        );
+      default:
+        const singular = type.slice(0, -1);
+        return (
+          <div key={type} className={`resume-section ${dragOverSection === singular ? 'valid-drop' : ''}`} onDragOver={(e) => handleDragOver(e, singular)} onDrop={(e) => handleDrop(e, singular, data.length)}>
+            <h3>{type.replace('_', ' ')}</h3>
+            {data.map((item, idx) => {
+              const details = getItemDetails(item, singular);
+              return (
+                <div key={item.id} className={`resume-item draggable-item ${draggingItem?.type === singular && draggingItem?.item.id === item.id ? 'dragging' : ''} ${dragOverSection === singular && dragOverIndex === idx ? 'drag-over-item' : ''}`} draggable onDragStart={(e) => handleDragStart(e, item, singular, idx)} onDragEnd={handleDragEnd} onDragOver={(e) => handleDragOver(e, singular, idx)} onDrop={(e) => { e.stopPropagation(); handleDrop(e, singular, idx); }}>
+                  <div className="item-header">
+                    <div style={{display:'flex', alignItems:'center', gap:'4px', width:'100%'}}>
+                      {!isPrinting && <GripVertical className="drag-handle-icon" size={16} onMouseDown={() => setCanDrag(true)} />}
+                      <h4 className="resume-item-title-row">
+                        <span className="title-text">{details.title}</span>
+                        {details.subtitle && (
+                          <>
+                            <span className="title-separator"> | </span>
+                            <span className="subtitle-text">{details.subtitle}</span>
+                          </>
+                        )}
+                      </h4>
+                    </div>
+                  </div>
+                  <div className="date-text">{formatDate(item.start_date || item.date)} {item.end_date ? `- ${formatDate(item.end_date)}` : ''}</div>
+                  {item.description && <p>{item.description}</p>}
+                </div>
+              );
+            })}
+          </div>
+        );
+    }
+  };
+
+  // Get all unique custom titles from both profile and resume
+  const customTitles = Array.from(new Set([
+    ...(profileData.custom_items || []).map(i => i.title),
+    ...(resume.custom_items || []).map(i => i.title)
+  ])).filter(Boolean);
+
+  const getItemDetails = (item, type) => {
+    switch(type) {
+      case 'education': return { title: item.degree || 'Degree', subtitle: item.institution || 'Institution' };
+      case 'experience': return { title: item.role || 'Role', subtitle: item.company || 'Company' };
+      case 'project': return { title: item.name || 'Project Name', subtitle: item.role || '' };
+      case 'skill': return { title: item.name, subtitle: '' };
+      case 'custom_item': return { title: item.subtitle || item.title, subtitle: '' }; /* Removed repeating title */
+      case 'certification': return { title: item.name, subtitle: item.issuer };
+      case 'course': return { title: item.name, subtitle: item.institution };
+      case 'achievement': return { title: item.title, subtitle: '' };
+      default: return { title: item.title || item.name || item.role || 'Unnamed Item', subtitle: '' };
+    }
+  };
+
+  const activeSections = [];
+  resume.layout_config?.rows?.forEach(r => r.columns?.forEach(c => c.sections?.forEach(s => activeSections.push(s))));
+  const activeSectionSet = new Set(activeSections);
+
+  return (
+    <div className={`builder-container ${isPrinting ? 'is-printing' : ''}`}>
+      <div className="builder-header ui-only">
+        <div className="builder-heading-group">
+          <span className="builder-heading-label">Resume Name</span>
+          <input className="builder-heading-input" value={name} onChange={e => setName(e.target.value)} onBlur={handleUpdateMetadata} />
+        </div>
+        <div className="header-actions">
           <button className="btn btn-primary" onClick={handleDownloadPdf}>Download PDF</button>
           <button className="btn btn-red" onClick={() => navigate('/dashboard')}>Done</button>
         </div>
       </div>
 
       <div className="builder-grid">
-        <div className="builder-sidebar">
-          {/* Skills */}
-          <div className="glass-panel">
-            <h2>Available Skills</h2>
-            {availableSkills.length === 0 ? <p className="empty-text">No more skills to add.</p> : (
-              <div className="available-list">
-                {availableSkills.map(s => (
-                  <div key={s.id} className="available-item">
-                    <span>{s.name}</span>
-                    <button onClick={() => handleAddSkill(s.id)} className="btn btn-primary btn-small">+</button>
-                  </div>
-                ))}
-              </div>
-            )}
+        <div className="builder-sidebar ui-only">
+          <div className="builder-tabs">
+            <button className={`tab-btn ${activeTab === 'Layout' ? 'active' : ''}`} onClick={() => setActiveTab('Layout')}>
+              <Grid size={14} /> Layout Grid
+            </button>
+            <button className={`tab-btn ${activeTab === 'Content' ? 'active' : ''}`} onClick={() => setActiveTab('Content')}>
+              <FileText size={14} /> Content
+            </button>
           </div>
 
-          {/* Experiences */}
-          <div className="glass-panel" style={{ marginTop: '0.75rem' }}>
-            <h2>Available Experiences</h2>
-            {availableExps.length === 0 ? <p className="empty-text">None to add.</p> : (
-              <div className="available-list">
-                {availableExps.map(e => (
-                  <div key={e.id} className="available-item">
-                    <span><strong style={{fontSize:'0.8rem'}}>{e.role}</strong><br/><span style={{fontSize:'0.7rem',color:'#888'}}>{e.company}</span></span>
-                    <button onClick={() => handleAddExp(e.id)} className="btn btn-primary btn-small">+</button>
+          <div className="sidebar-scroll">
+            {activeTab === 'Content' ? (
+              <>
+                <div className="glass-panel" style={{marginBottom:'1.5rem'}}>
+                  <h2 style={{marginBottom:'1rem'}}>Personal Details</h2>
+                  <div className="sidebar-contact-inputs">
+                    <div className="input-with-icon" title="Designation">
+                      <User size={14} />
+                      <input placeholder="Designation (e.g. Software Engineer)" value={designation} onChange={e => setDesignation(e.target.value)} onBlur={handleUpdateMetadata} />
+                    </div>
+                    <div className="input-with-icon" title="Email">
+                      <Mail size={14} />
+                      <input placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} onBlur={handleUpdateMetadata} />
+                    </div>
+                    <div className="input-with-icon" title="Phone">
+                      <Phone size={14} />
+                      <input placeholder="Phone" value={phone} onChange={e => setPhone(e.target.value)} onBlur={handleUpdateMetadata} />
+                    </div>
+                    <div className="input-with-icon" title="Location">
+                      <MapPin size={14} />
+                      <input placeholder="Location" value={location} onChange={e => setLocation(e.target.value)} onBlur={handleUpdateMetadata} />
+                    </div>
+                    <div className="input-with-icon" title="Website/Link URL">
+                      <Globe size={14} />
+                      <input placeholder="Website URL (e.g. https://...)" value={website} onChange={e => setWebsite(e.target.value)} onBlur={handleUpdateMetadata} />
+                    </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                </div>
 
-          {/* Education */}
-          <div className="glass-panel" style={{ marginTop: '0.75rem' }}>
-            <h2>Available Education</h2>
-            {availableEdus.length === 0 ? <p className="empty-text">None to add.</p> : (
-              <div className="available-list">
-                {availableEdus.map(e => (
-                  <div key={e.id} className="available-item">
-                    <span><strong style={{fontSize:'0.8rem'}}>{e.degree}</strong><br/><span style={{fontSize:'0.7rem',color:'#888'}}>{e.institution}</span></span>
-                    <button onClick={() => handleAddEdu(e.id)} className="btn btn-primary btn-small">+</button>
+                <div className="glass-panel">
+                  <div className="resume-section-header" style={{marginBottom:'1rem'}}>
+                    <h2 style={{margin:0}}>Summary</h2>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  
+                  <h2 style={{marginTop:'2rem'}}>Sections Content</h2>
+                  <p className="sidebar-hint" style={{marginBottom:'1.5rem'}}>Add or remove items from active layout sections.</p>
+                  
+                  {[
+                    { label: 'Skills', type: 'skill', profile: profileData.skills, added: resume.skills, active: activeSectionSet.has('skills') },
+                    { label: 'Experience', type: 'experience', profile: profileData.experiences, added: resume.experiences, active: activeSectionSet.has('experiences') },
+                    { label: 'Education', type: 'education', profile: profileData.educations, added: resume.educations, active: activeSectionSet.has('educations') },
+                    { label: 'Projects', type: 'project', profile: profileData.projects, added: resume.projects, active: activeSectionSet.has('projects') },
+                    { label: 'Certifications', type: 'certification', profile: profileData.certifications, added: resume.certifications, active: activeSectionSet.has('certifications') },
+                    { label: 'Courses', type: 'course', profile: profileData.courses, added: resume.courses, active: activeSectionSet.has('courses') },
+                    { label: 'Achievements', type: 'achievement', profile: profileData.achievements, added: resume.achievements, active: activeSectionSet.has('achievements') }
+                  ].map(sec => sec.active && (
+                    <div key={sec.type} className="section-picker">
+                      <h3>{sec.label}</h3>
+                      <div className="available-list">
+                        {sec.profile.map(item => {
+                          const alreadyIn = (sec.added || []).find(ai => ai.id === item.id);
+                          const details = getItemDetails(item, sec.type);
+                          return (
+                            <div key={item.id} className={`sidebar-item-row ${alreadyIn ? 'added' : ''}`}>
+                              {alreadyIn ? (
+                                <button className="btn-small btn-danger" title="Remove from Resume" onClick={() => handleRemoveGeneric(sec.type, item.id)}>✕</button>
+                              ) : (
+                                <button className="btn-small btn-primary" title="Add to Resume" onClick={() => handleAddGeneric(sec.type, { [`${sec.type}_id`]: item.id, order: 1 })}>+</button>
+                              )}
+                              <div className="sidebar-item-info">
+                                <div className="sidebar-item-title">{details.title}</div>
+                                {details.subtitle && <div className="sidebar-item-subtitle">{details.subtitle}</div>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {sec.profile.length === 0 && <p className="empty-hint">No items in Profile</p>}
+                      </div>
+                    </div>
+                  ))}
 
-          {/* Projects */}
-          <div className="glass-panel" style={{ marginTop: '0.75rem' }}>
-            <h2>Available Projects</h2>
-            {availableProjects.length === 0 ? <p className="empty-text">None to add.</p> : (
-              <div className="available-list">
-                {availableProjects.map(p => (
-                  <div key={p.id} className="available-item">
-                    <span><strong style={{fontSize:'0.8rem'}}>{p.name}</strong></span>
-                    <button onClick={() => handleAddProject(p.id)} className="btn btn-primary btn-small">+</button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  {customTitles.map(title => {
+                    const isActive = activeSectionSet.has(`custom:${title}`);
+                    if (!isActive) return null;
 
-          {/* Certifications */}
-          <div className="glass-panel" style={{ marginTop: '0.75rem' }}>
-            <h2>Available Certifications</h2>
-            {availableCerts.length === 0 ? <p className="empty-text">None to add.</p> : (
-              <div className="available-list">
-                {availableCerts.map(c => (
-                  <div key={c.id} className="available-item">
-                    <span><strong style={{fontSize:'0.8rem'}}>{c.name}</strong></span>
-                    <button onClick={() => handleAddCert(c.id)} className="btn btn-primary btn-small">+</button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+                    const itemsInProfile = (profileData.custom_items || []).filter(i => i.title === title);
 
-          {/* Courses */}
-          <div className="glass-panel" style={{ marginTop: '0.75rem' }}>
-            <h2>Available Courses</h2>
-            {availableCourses.length === 0 ? <p className="empty-text">None to add.</p> : (
-              <div className="available-list">
-                {availableCourses.map(c => (
-                  <div key={c.id} className="available-item">
-                    <span><strong style={{fontSize:'0.8rem'}}>{c.name}</strong></span>
-                    <button onClick={() => handleAddCourse(c.id)} className="btn btn-primary btn-small">+</button>
+                    return (
+                      <div key={title} className="section-picker">
+                        <h3>{title}</h3>
+                        <div className="available-list">
+                          {itemsInProfile.map(item => {
+                            const alreadyIn = (resume.custom_items || []).find(ai => ai.id === item.id);
+                            const details = getItemDetails(item, 'custom_item');
+                            return (
+                              <div key={item.id} className={`sidebar-item-row ${alreadyIn ? 'added' : ''}`}>
+                                {alreadyIn ? (
+                                  <button className="btn-small btn-danger" title="Remove" onClick={() => handleRemoveGeneric('custom_item', item.id)}>✕</button>
+                                ) : (
+                                  <button className="btn-small btn-primary" title="Add" onClick={() => handleAddGeneric('custom_item', { custom_item_id: item.id, order: 1 })}>+</button>
+                                )}
+                                <div className="sidebar-item-info">
+                                  <div className="sidebar-item-title">{details.title}</div>
+                                  {details.subtitle && <div className="sidebar-item-subtitle">{details.subtitle}</div>}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <div className="glass-panel">
+                <h2>Layout Grid Editor</h2>
+                
+                <div className="split-slider-container">
+                  <div style={{display:'flex', justifyContent:'space-between', marginBottom:'0.5rem'}}>
+                    <span style={{fontSize:'0.8rem', opacity:0.7}}>Left Column Width</span>
+                    <span style={{fontSize:'0.8rem', fontWeight:'bold', color:'var(--primary)'}}>{tempSplit}%</span>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  <input type="range" className="split-slider" min="20" max="80" value={tempSplit} 
+                    onChange={e => setTempSplit(parseInt(e.target.value))} 
+                    onMouseUp={() => {
+                      const newLayout = { ...resume.layout_config, column_split: tempSplit };
+                      handleUpdateLayout(newLayout);
+                    }}
+                  />
+                </div>
 
-          {/* Achievements */}
-          <div className="glass-panel" style={{ marginTop: '0.75rem' }}>
-            <h2>Available Achievements</h2>
-            {availableAchievements.length === 0 ? <p className="empty-text">None to add.</p> : (
-              <div className="available-list">
-                {availableAchievements.map(a => (
-                  <div key={a.id} className="available-item">
-                    <span style={{fontSize:'0.82rem',fontWeight:600}}>{a.title}</span>
-                    <button onClick={() => handleAddAchievement(a.id)} className="btn btn-primary btn-small">+</button>
+                <div className="layout-grid-editor">
+                  <div className="layout-header-chip">
+                    <User size={16} /> <span>Personal Header</span>
                   </div>
-                ))}
+                  
+                  {resume.layout_config?.rows?.map((row, rIdx) => (
+                    <div key={rIdx} className="layout-row-editor">
+                      <div className="row-cols">
+                        {row.columns.map((col, cIdx) => (
+                          <div key={cIdx} className="col-editor" onDragOver={e => e.preventDefault()} onDrop={() => handleSectionDrop(rIdx, cIdx)}>
+                            {col.sections.map((s, sIdx) => (
+                              <div 
+                                key={sIdx} 
+                                className="section-chip-card" 
+                                draggable 
+                                onDragStart={e => handleSectionDragStart(e, s, rIdx, cIdx, sIdx)}
+                                onDragOver={e => e.preventDefault()}
+                                onDrop={e => { e.stopPropagation(); handleSectionDrop(rIdx, cIdx, sIdx); }}
+                              >
+                                <GripVertical size={12} className="chip-handle" />
+                                <span className="chip-content">{s.startsWith('custom:') ? s.split('custom:')[1] : s.replace('_', ' ')}</span>
+                                <Trash2 size={12} style={{marginLeft:'auto', cursor:'pointer', opacity:0.6}} onClick={() => removeSectionFromLayout(rIdx, cIdx, sIdx)} />
+                              </div>
+                            ))}
+                            {col.sections.length === 0 && <div className="empty-slot"></div>}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="row-actions">
+                        <button className="row-action-btn" onClick={() => toggleRowColumns(rIdx)} title={row.columns.length > 1 ? "Merge Columns" : "Split Row"}>
+                          {row.columns.length > 1 ? <Grid size={12} /> : <Columns size={12} />}
+                        </button>
+                        <button className="row-action-btn delete" onClick={() => removeRow(rIdx)}><Trash2 size={12} /></button>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <button className="btn btn-outline btn-full mt-2" onClick={addRow}><Plus size={14} /> Add Row</button>
+                  
+                  <div className="mt-4">
+                    <h3>Standard Sections</h3>
+                    <div className="section-adder-grid">
+                      {['summary', 'skills', 'experiences', 'educations', 'projects', 'certifications', 'courses', 'achievements'].map(s => (
+                        <div key={s} className="section-chip-card" draggable onDragStart={e => handleSectionDragStart(e, s)} onClick={() => handleAddSection(s)}>
+                          <Plus size={12} /> <span style={{textTransform:'capitalize'}}>{s.replace('_', ' ')}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <h3 className="mt-3">Custom Sections (from Profile)</h3>
+                    <div className="section-adder-grid">
+                      {customTitles.map(title => (
+                        <div key={title} className="section-chip-card" draggable onDragStart={e => handleSectionDragStart(e, `custom:${title}`)} onClick={() => handleAddSection(`custom:${title}`)}>
+                          <Plus size={12} /> <span>{title}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
         </div>
 
         <div className="builder-main">
-          <div className={`glass-panel resume-preview ${isPrinting ? 'is-printing' : ''}`} ref={printRef}>
-            {/* Header Info */}
-            {isPrinting ? (
-              <h1 className="resume-title-display">{title || 'Your Name'}</h1>
-            ) : (
-              <input className="resume-title-input" value={title} onChange={e => setTitle(e.target.value)} onBlur={handleUpdateMetadata} placeholder="Full Name" />
-            )}
-
-            {isPrinting ? (
-              <div className="resume-designation-display">{designation}</div>
-            ) : (
-              <input className="resume-designation-input" value={designation} onChange={e => setDesignation(e.target.value)} onBlur={handleUpdateMetadata} placeholder="Designation" />
-            )}
-
-            <div className="resume-contact-row">
-              <input className="resume-contact-input" value={email} onChange={e => setEmail(e.target.value)} onBlur={handleUpdateMetadata} placeholder="Email" />
-              <input className="resume-contact-input" value={phone} onChange={e => setPhone(e.target.value)} onBlur={handleUpdateMetadata} placeholder="Phone" />
-              <input className="resume-contact-input" value={location} onChange={e => setLocation(e.target.value)} onBlur={handleUpdateMetadata} placeholder="Location" />
-            </div>
-
-            <div className="resume-summary-container">
-              <textarea className="resume-summary-input" value={summary} onChange={e => setSummary(e.target.value)} onBlur={handleUpdateMetadata} placeholder="Professional Summary" rows={3} />
-              {!isPrinting && <button className="sync-bio-btn ui-only" onClick={handleUseProfileBio}>🔄</button>}
+          <div className={`resume-preview ${isPrinting ? 'is-printing' : ''}`} ref={printRef}>
+            <div className="resume-header">
+              <input className="resume-title-input" value={title} onChange={e => setTitle(e.target.value)} onBlur={handleUpdateMetadata} />
+              {designation && <div className="resume-designation-display">{designation}</div>}
+              <div className="resume-contact-row">
+                {email && <span className="resume-contact-display"><Mail size={12} /> {email}</span>}
+                {phone && <span className="resume-contact-display"><Phone size={12} /> {phone}</span>}
+                {location && <span className="resume-contact-display"><MapPin size={12} /> {location}</span>}
+                {website && (
+                  <span className="resume-contact-display">
+                    <LinkIcon size={12} style={{marginRight: '4px'}} /> 
+                    <a href={website.startsWith('http') ? website : `https://${website}`} target="_blank" rel="noopener noreferrer" style={{color: 'inherit', textDecoration: 'none'}}>
+                      {websiteLabel || 'website'}
+                    </a>
+                  </span>
+                )}              </div>
+              <hr className="resume-header-divider" />
             </div>
             
-            <hr className="resume-header-divider" />
-
-            {/* Skills Section */}
-            <div 
-              className={getSectionClass('skill')}
-              onDragOver={(e) => handleDragOver(e, 'skill')}
-              onDragLeave={() => setDragOverSection(null)}
-              onDrop={(e) => handleDrop(e, 'skill', (resume.skills || []).length)}
-            >
-              <h3>Skills</h3>
-              <div className="skills-list">
-                {(resume.skills || []).map((s, idx) => (
-                  <span 
-                    key={s.id} 
-                    className={`skill-tag resume-skill-tag draggable-item ${
-                      draggingItem?.item.id === s.id && draggingItem?.type === 'skill' ? 'dragging' : ''
-                    } ${
-                      dragOverSection === 'skill' && dragOverIndex === idx ? 'drag-over-item' : ''
-                    }`}
-                    draggable={!isPrinting}
-                    onDragStart={(e) => handleDragStart(e, s, 'skill', idx)}
-                    onDragOver={(e) => handleDragOver(e, 'skill', idx)}
-                    onDrop={(e) => handleDrop(e, 'skill', idx)}
-                  >
-                    {!isPrinting && (
-                      <GripVertical 
-                        className="drag-handle-icon drag-handle" 
-                        size={14} 
-                        onMouseDown={() => setCanDrag(true)}
-                        onMouseUp={() => setCanDrag(false)}
-                        onMouseLeave={() => setCanDrag(false)}
-                      />
-                    )}
-                    {s.name}
-                    <button onClick={() => handleRemoveSkill(s.id)} className="remove-btn ui-only">x</button>
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Experience Section */}
-            <div 
-              className={getSectionClass('experience')}
-              onDragOver={(e) => handleDragOver(e, 'experience')}
-              onDragLeave={() => setDragOverSection(null)}
-              onDrop={(e) => handleDrop(e, 'experience', (resume.experiences || []).length)}
-            >
-              <h3>Experience</h3>
-              <div className="exp-list">
-                {(resume.experiences || []).map((e, idx) => (
-                  <div 
-                    key={e.id} 
-                    className={`resume-exp-item draggable-item ${
-                      draggingItem?.item.id === e.id && draggingItem?.type === 'experience' ? 'dragging' : ''
-                    } ${
-                      dragOverSection === 'experience' && dragOverIndex === idx ? 'drag-over-item' : ''
-                    }`}
-                    draggable={!isPrinting}
-                    onDragStart={(e) => handleDragStart(e, e, 'experience', idx)}
-                    onDragOver={(e) => handleDragOver(e, 'experience', idx)}
-                    onDrop={(e) => handleDrop(e, 'experience', idx)}
-                  >
-                    {!isPrinting && (
-                      <GripVertical 
-                        className="drag-handle-icon-side drag-handle" 
-                        size={18} 
-                        onMouseDown={() => setCanDrag(true)}
-                        onMouseUp={() => setCanDrag(false)}
-                        onMouseLeave={() => setCanDrag(false)}
-                      />
-                    )}
-                    <div className="exp-content">
-                      <div className="exp-header">
-                        <h4>{e.role} <span className="company-text">at {e.company}</span></h4>
-                        <button onClick={() => handleRemoveExp(e.id)} className="btn-danger btn-small ui-only">✕</button>
-                      </div>
-                      <div className="date-text">{e.start_date} - {e.end_date}</div>
-                    </div>
+            {resume.layout_config?.rows?.map((row, rIdx) => (
+              <div key={rIdx} className="resume-row" style={{ 
+                display: 'grid', 
+                gridTemplateColumns: row.columns?.length > 1 ? `${tempSplit}% 1fr` : '1fr', 
+                gap: '40px' 
+              }}>
+                {row.columns?.map((col, cIdx) => (
+                  <div key={cIdx} className="resume-column">
+                    {col.sections?.map(s => renderSection(s))}
                   </div>
                 ))}
               </div>
-            </div>
-
-            {/* Education Section */}
-            <div 
-              className={getSectionClass('education')}
-              onDragOver={(e) => handleDragOver(e, 'education')}
-              onDragLeave={() => setDragOverSection(null)}
-              onDrop={(e) => handleDrop(e, 'education', (resume.educations || []).length)}
-            >
-              <h3>Education</h3>
-              <div className="exp-list">
-                {(resume.educations || []).map((e, idx) => (
-                  <div 
-                    key={e.id} 
-                    className={`resume-exp-item draggable-item ${
-                      draggingItem?.item.id === e.id && draggingItem?.type === 'education' ? 'dragging' : ''
-                    } ${
-                      dragOverSection === 'education' && dragOverIndex === idx ? 'drag-over-item' : ''
-                    }`}
-                    draggable={!isPrinting}
-                    onDragStart={(e) => handleDragStart(e, e, 'education', idx)}
-                    onDragOver={(e) => handleDragOver(e, 'education', idx)}
-                    onDrop={(e) => handleDrop(e, 'education', idx)}
-                  >
-                    {!isPrinting && (
-                      <GripVertical 
-                        className="drag-handle-icon-side drag-handle" 
-                        size={18} 
-                        onMouseDown={() => setCanDrag(true)}
-                        onMouseUp={() => setCanDrag(false)}
-                        onMouseLeave={() => setCanDrag(false)}
-                      />
-                    )}
-                    <div className="exp-content">
-                      <div className="exp-header">
-                        <h4>{e.degree} <span className="company-text">at {e.institution}</span></h4>
-                        <button onClick={() => handleRemoveEdu(e.id)} className="btn-danger btn-small ui-only">✕</button>
-                      </div>
-                      <div className="date-text">{e.start_date} - {e.end_date}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Projects Section */}
-            <div 
-              className={getSectionClass('project')}
-              onDragOver={(e) => handleDragOver(e, 'project')}
-              onDragLeave={() => setDragOverSection(null)}
-              onDrop={(e) => handleDrop(e, 'project', (resume.projects || []).length)}
-            >
-              <h3>Projects</h3>
-              <div className="exp-list">
-                {(resume.projects || []).map((p, idx) => (
-                  <div 
-                    key={p.id} 
-                    className={`resume-exp-item draggable-item ${
-                      draggingItem?.item.id === p.id && draggingItem?.type === 'project' ? 'dragging' : ''
-                    } ${
-                      dragOverSection === 'project' && dragOverIndex === idx ? 'drag-over-item' : ''
-                    }`}
-                    draggable={!isPrinting}
-                    onDragStart={(e) => handleDragStart(e, p, 'project', idx)}
-                    onDragOver={(e) => handleDragOver(e, 'project', idx)}
-                    onDrop={(e) => handleDrop(e, 'project', idx)}
-                  >
-                    {!isPrinting && (
-                      <GripVertical 
-                        className="drag-handle-icon-side drag-handle" 
-                        size={18} 
-                        onMouseDown={() => setCanDrag(true)}
-                        onMouseUp={() => setCanDrag(false)}
-                        onMouseLeave={() => setCanDrag(false)}
-                      />
-                    )}
-                    <div className="exp-content">
-                      <div className="exp-header">
-                        <h4>{p.name}</h4>
-                        <button onClick={() => handleRemoveProject(p.id)} className="btn-danger btn-small ui-only">✕</button>
-                      </div>
-                      <div className="date-text">{formatDate(p.start_date)} - {formatDate(p.end_date)}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Certifications Section */}
-            <div 
-              className={getSectionClass('certification')}
-              onDragOver={(e) => handleDragOver(e, 'certification')}
-              onDragLeave={() => setDragOverSection(null)}
-              onDrop={(e) => handleDrop(e, 'certification', (resume.certifications || []).length)}
-            >
-              <h3>Certifications</h3>
-              <div className="exp-list">
-                {(resume.certifications || []).map((c, idx) => (
-                  <div 
-                    key={c.id} 
-                    className={`resume-exp-item draggable-item ${
-                      draggingItem?.item.id === c.id && draggingItem?.type === 'certification' ? 'dragging' : ''
-                    } ${
-                      dragOverSection === 'certification' && dragOverIndex === idx ? 'drag-over-item' : ''
-                    }`}
-                    draggable={!isPrinting}
-                    onDragStart={(e) => handleDragStart(e, c, 'certification', idx)}
-                    onDragOver={(e) => handleDragOver(e, 'certification', idx)}
-                    onDrop={(e) => handleDrop(e, 'certification', idx)}
-                  >
-                    {!isPrinting && (
-                      <GripVertical 
-                        className="drag-handle-icon-side drag-handle" 
-                        size={18} 
-                        onMouseDown={() => setCanDrag(true)}
-                        onMouseUp={() => setCanDrag(false)}
-                        onMouseLeave={() => setCanDrag(false)}
-                      />
-                    )}
-                    <div className="exp-content">
-                      <div className="exp-header">
-                        <h4>{c.name}</h4>
-                        <button onClick={() => handleRemoveCert(c.id)} className="btn-danger btn-small ui-only">✕</button>
-                      </div>
-                      <div className="date-text">{c.date}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Courses Section */}
-            <div 
-              className={getSectionClass('course')}
-              onDragOver={(e) => handleDragOver(e, 'course')}
-              onDragLeave={() => setDragOverSection(null)}
-              onDrop={(e) => handleDrop(e, 'course', (resume.courses || []).length)}
-            >
-              <h3>Courses</h3>
-              <div className="exp-list">
-                {(resume.courses || []).map((c, idx) => (
-                  <div 
-                    key={c.id} 
-                    className={`resume-exp-item draggable-item ${
-                      draggingItem?.item.id === c.id && draggingItem?.type === 'course' ? 'dragging' : ''
-                    } ${
-                      dragOverSection === 'course' && dragOverIndex === idx ? 'drag-over-item' : ''
-                    }`}
-                    draggable={!isPrinting}
-                    onDragStart={(e) => handleDragStart(e, c, 'course', idx)}
-                    onDragOver={(e) => handleDragOver(e, 'course', idx)}
-                    onDrop={(e) => handleDrop(e, 'course', idx)}
-                  >
-                    {!isPrinting && (
-                      <GripVertical 
-                        className="drag-handle-icon-side drag-handle" 
-                        size={18} 
-                        onMouseDown={() => setCanDrag(true)}
-                        onMouseUp={() => setCanDrag(false)}
-                        onMouseLeave={() => setCanDrag(false)}
-                      />
-                    )}
-                    <div className="exp-content">
-                      <div className="exp-header">
-                        <h4>{c.name}</h4>
-                        <button onClick={() => handleRemoveCourse(c.id)} className="btn-danger btn-small ui-only">✕</button>
-                      </div>
-                      <div className="date-text">{c.date}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Achievements Section */}
-            <div 
-              className={getSectionClass('achievement')}
-              onDragOver={(e) => handleDragOver(e, 'achievement')}
-              onDragLeave={() => setDragOverSection(null)}
-              onDrop={(e) => handleDrop(e, 'achievement', (resume.achievements || []).length)}
-            >
-              <h3>Achievements</h3>
-              <div className="exp-list">
-                {(resume.achievements || []).map((a, idx) => (
-                  <div 
-                    key={a.id} 
-                    className={`resume-exp-item draggable-item ${
-                      draggingItem?.item.id === a.id && draggingItem?.type === 'achievement' ? 'dragging' : ''
-                    } ${
-                      dragOverSection === 'achievement' && dragOverIndex === idx ? 'drag-over-item' : ''
-                    }`}
-                    draggable={!isPrinting}
-                    onDragStart={(e) => handleDragStart(e, a, 'achievement', idx)}
-                    onDragOver={(e) => handleDragOver(e, 'achievement', idx)}
-                    onDrop={(e) => handleDrop(e, 'achievement', idx)}
-                  >
-                    {!isPrinting && (
-                      <GripVertical 
-                        className="drag-handle-icon-side drag-handle" 
-                        size={18} 
-                        onMouseDown={() => setCanDrag(true)}
-                        onMouseUp={() => setCanDrag(false)}
-                        onMouseLeave={() => setCanDrag(false)}
-                      />
-                    )}
-                    <div className="exp-content">
-                      <div className="exp-header">
-                        <h4>{a.title}</h4>
-                        <button onClick={() => handleRemoveAchievement(a.id)} className="btn-danger btn-small ui-only">✕</button>
-                      </div>
-                      <div className="date-text">{formatDate(a.date)}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </div>

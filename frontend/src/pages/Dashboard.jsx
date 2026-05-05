@@ -91,7 +91,7 @@ const Dashboard = () => {
     try {
       // Fetches all resumes for the current user
       const res = await api.get('/resume');
-      setResumes(res.data);
+      setResumes(res.data.resumes || []);
     } catch (err) {
       console.error(err);
     }

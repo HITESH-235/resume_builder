@@ -12,6 +12,7 @@ const Profile = () => {
   const [certifications, setCertifications] = useState([]);
   const [courses, setCourses] = useState([]);
   const [achievements, setAchievements] = useState([]);
+  const [customItems, setCustomItems] = useState([]);
 
   // New entry states
   const [newSkill, setNewSkill] = useState('');
@@ -21,6 +22,9 @@ const Profile = () => {
   const [newCert, setNewCert] = useState({ name: '', issuer: '', url: '', date: '' });
   const [newCourse, setNewCourse] = useState({ name: '', institution: '', date: '' });
   const [newAchievement, setNewAchievement] = useState({ title: '', description: '', date: '' });
+  const [newCustomItem, setNewCustomItem] = useState({ title: '', subtitle: '', description: '', start_date: '', end_date: '' });
+  const [showNewTitleInput, setShowNewTitleInput] = useState(false);
+  const [selectedTitle, setSelectedTitle] = useState('');
 
   const [personalInfo, setPersonalInfo] = useState({ full_name: '', bio: '' });
 
@@ -31,6 +35,17 @@ const Profile = () => {
 
   const fetchData = async () => {
     try {
+      const res = await api.get('/profile/custom-item');
+      const items = res.data.custom_items || [];
+      setCustomItems(items);
+      const uniqueTitles = [...new Set(items.map(item => item.title))];
+      if (uniqueTitles.length > 0) {
+        setSelectedTitle(uniqueTitles[0]);
+        setNewCustomItem(prev => ({ ...prev, title: uniqueTitles[0] }));
+      } else {
+        setShowNewTitleInput(true);
+        setSelectedTitle('new');
+      }
       const fullRes = await api.get('/profile');
       const data = fullRes.data.data;
       setProfile(data.profile || {});
@@ -41,6 +56,7 @@ const Profile = () => {
       setCertifications(data.certifications || []);
       setCourses(data.courses || []);
       setAchievements(data.achievements || []);
+      setCustomItems(data.custom_items || []);
       setPersonalInfo({
         full_name: data.profile?.full_name || '',
         bio: data.profile?.bio || ''
@@ -190,6 +206,24 @@ const Profile = () => {
     try { await api.delete(`/profile/achievement/${id}`); } catch (err) { console.error(err); fetchData(); }
   };
 
+  const handleAddCustomItem = async (e) => {
+    e.preventDefault();
+    try {
+      if (newCustomItem.end_date && new Date(newCustomItem.start_date) > new Date(newCustomItem.end_date)) {
+        alert("Start date cannot be after the end date.");
+        return;
+      }
+      await api.post('/profile/custom-item', newCustomItem);
+      setNewCustomItem({ title: '', subtitle: '', start_date: '', end_date: '', description: '' });
+      fetchData();
+    } catch (err) { console.error(err); }
+  };
+
+  const handleDeleteCustomItem = async (id) => {
+    setCustomItems(prev => prev.filter(i => i.id !== id));
+    try { await api.delete(`/profile/custom-item/${id}`); } catch (err) { console.error(err); fetchData(); }
+  };
+
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     try {
@@ -210,8 +244,7 @@ const Profile = () => {
         <div className="glass-panel profile-card profile-card-full personal-info-card">
           <h2>Personal Information</h2>
           <form onSubmit={handleUpdateProfile} className="personal-info-form">
-            <div className="info-inputs">
-              <div className="input-group">
+            <div className="info-inputs">              <div className="input-group">
                 <label>Full Name</label>
                 <input 
                   type="text" 
@@ -377,7 +410,7 @@ const Profile = () => {
             </form>
           </div>
           <div className="profile-list-area">
-            <div className="exp-list">
+            <div className="exp-list custom-grid">
               {educations.map(e => (
                 <div key={e.id} className="exp-item">
                   <div className="exp-header">
@@ -408,7 +441,7 @@ const Profile = () => {
             </form>
           </div>
           <div className="profile-list-area">
-            <div className="exp-list">
+            <div className="exp-list custom-grid">
               {projects.map(p => (
                 <div key={p.id} className="exp-item">
                   <div className="exp-header">
@@ -420,6 +453,85 @@ const Profile = () => {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+
+        <div className="glass-panel profile-card profile-card-full card-custom">
+          <h2>Custom Item Sections (Volunteer, Hobbies, etc.)</h2>
+          <div className="profile-form-area">
+            <p className="section-hint" style={{marginBottom: '1.25rem'}}>Each unique <strong>Title</strong> will create a new section/table on your resume.</p>
+            <form onSubmit={handleAddCustomItem} className="vertical-form">
+              <div className="date-group">
+                <div style={{flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
+                  <select 
+                    value={selectedTitle} 
+                    onChange={e => {
+                      const val = e.target.value;
+                      setSelectedTitle(val);
+                      if (val === 'new') {
+                        setShowNewTitleInput(true);
+                        setNewCustomItem({ ...newCustomItem, title: '' });
+                      } else {
+                        setShowNewTitleInput(false);
+                        setNewCustomItem({ ...newCustomItem, title: val });
+                      }
+                    }}
+                    className="dropdown-select"
+                  >
+                    {[...new Set(customItems.map(i => i.title))].map(t => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                    <option value="new">+ Add New Category...</option>
+                  </select>
+                  {showNewTitleInput && (
+                    <input 
+                      type="text" 
+                      placeholder="Category Name (e.g. Volunteer Work)" 
+                      value={newCustomItem.title} 
+                      onChange={e => setNewCustomItem({ ...newCustomItem, title: e.target.value })} 
+                      required 
+                      autoFocus
+                    />
+                  )}
+                </div>
+                <input type="text" placeholder="Entry Subtitle (e.g. Org Name)" value={newCustomItem.subtitle} onChange={e => setNewCustomItem({ ...newCustomItem, subtitle: e.target.value })} />
+              </div>
+              <div className="date-group">
+                <input type="date" value={newCustomItem.start_date} onChange={e => setNewCustomItem({ ...newCustomItem, start_date: e.target.value })} />
+                <input type="date" value={newCustomItem.end_date} onChange={e => setNewCustomItem({ ...newCustomItem, end_date: e.target.value })} />
+              </div>
+              <textarea placeholder="Description" value={newCustomItem.description} onChange={e => setNewCustomItem({ ...newCustomItem, description: e.target.value })} rows={2} />
+              <button type="submit" className="btn btn-primary submit-btn">Add to Section</button>
+            </form>
+          </div>
+          <div className="profile-list-area">
+            {Object.entries(customItems.reduce((acc, item) => {
+              if (!acc[item.title]) acc[item.title] = [];
+              acc[item.title].push(item);
+              return acc;
+            }, {})).map(([title, items]) => (
+              <div key={title} className="custom-category-group">
+                <h3 className="category-header">{title}</h3>
+                <div className="exp-list custom-grid">
+                  {items.map(item => (
+                    <div key={item.id} className="exp-item">
+                      <div className="exp-header">
+                        <h4>{item.subtitle || '(No Subtitle)'}</h4>
+                        <button onClick={() => handleDeleteCustomItem(item.id)} className="btn-danger btn-small">✕</button>
+                      </div>
+                      {(item.start_date || item.end_date) && (
+                        <div className="exp-dates text-red">
+                          {item.start_date ? new Date(item.start_date).toLocaleDateString() : ''} 
+                          {item.start_date && item.end_date ? ' – ' : ''}
+                          {item.end_date ? new Date(item.end_date).toLocaleDateString() : ''}
+                        </div>
+                      )}
+                      {item.description && <p style={{ margin: '0.25rem 0 0', fontSize: '0.78rem', color: '#555' }}>{item.description}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 

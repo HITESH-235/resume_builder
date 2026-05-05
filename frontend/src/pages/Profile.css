@@ -167,6 +167,31 @@
   font-weight: 600;
 }
 
+.dropdown-select {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: var(--bg-item);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-main);
+  cursor: pointer;
+  appearance: auto;
+}
+
+.custom-category-group {
+  margin-bottom: 2rem;
+}
+
+.category-header {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin: 1.5rem 0 1rem 0;
+  padding: 0.25rem 0.5rem;
+  border-left: 4px solid var(--primary);
+  background: rgba(30, 64, 175, 0.05);
+  border-radius: 0 4px 4px 0;
+}
 .btn-danger {
   width: 24px;
   height: 24px;
@@ -175,17 +200,30 @@
   align-items: center;
   justify-content: center;
   font-size: 0.7rem;
-  color: #ef4444;
-  background: #fff;
-  border: 1px solid #fee2e2;
+  color: #fff;
+  background: #ef4444;
+  border: none;
   border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
 }
 
 .btn-danger:hover {
-  background: #fee2e2;
+  background: #dc2626;
+}
+/* ── Personal Info Card ── */
+.custom-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
 }
 
-/* ── Personal Info Card ── */
+@media (max-width: 900px) {
+  .custom-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .personal-info-card {
   margin-bottom: 0.5rem;
 }
