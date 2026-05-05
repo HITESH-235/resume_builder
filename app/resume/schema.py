@@ -4,6 +4,8 @@ class ResumeCreateSchema(Schema):
     title = fields.Str(required=True)
     name = fields.Str()
     summary = fields.Str()
+    active_sections = fields.List(fields.Str(), required=False, allow_none=True)
+    layout_config = fields.Dict(required=False, allow_none=True)
 
 class AddSkillSchema(Schema):
     skill_id = fields.Int(required=True)
@@ -33,8 +35,12 @@ class AddAchievementSchema(Schema):
     achievement_id = fields.Int(required=True)
     order = fields.Int(required=True)
 
+class AddCustomItemSchema(Schema):
+    custom_item_id = fields.Int(required=True)
+    order = fields.Int(required=True)
 
-# same for both skills and experience joint table order checking
+
+# same for all joint table order checking
 class ReorderSchema(Schema):
     ordered_ids = fields.List(fields.Int(), required=True)
 
@@ -46,3 +52,7 @@ class UpdateResumeSchema(Schema):
     email = fields.Str(required=False, allow_none=True)
     phone = fields.Str(required=False, allow_none=True)
     location = fields.Str(required=False, allow_none=True)
+    website = fields.Str(required=False, allow_none=True)
+    website_label = fields.Str(required=False, allow_none=True)
+    active_sections = fields.List(fields.Str(), required=False, allow_none=True)
+    layout_config = fields.Dict(required=False, allow_none=True)

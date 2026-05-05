@@ -1,83 +1,96 @@
 from app.extensions.db import db
-from app.models import User, Resume, Experience, Skill, ResumeSkill, ResumeExperience, Education, ResumeEducation, Project, ResumeProject, Certification, ResumeCertification, Course, ResumeCourse, Achievement, ResumeAchievement
-from app.models.experience import Experience
-from app.models.skill import Skill
-from app.models.education import Education
-from app.models.user import User
+from app.models import User, Resume, Experience, Skill, ResumeSkill, ResumeExperience, Education, ResumeEducation, Project, ResumeProject, Certification, ResumeCertification, Course, ResumeCourse, Achievement, ResumeAchievement, ResumeCustomItem, CustomItem
 
 
 class ResumeService:
 
 # -------------------------------------------------------------------------------------------------------
-    # CREATE/FETCH/UPDATE/DELETE (basic resume info):
+    # RESUME general functions:
 
     @staticmethod
     def create_resume(user_id, data):
-        resume = Resume(
-            user_id = user_id,
-            title = data["title"],
-            summary = data.get("summary")
+        new_resume = Resume(
+            user_id=user_id,
+            title=data.get('title'),
+            name=data.get('name'),
+            summary=data.get('summary'),
+            designation=data.get('designation'),
+            email=data.get('email'),
+            phone=data.get('phone'),
+            location=data.get('location'),
+            active_sections=data.get('active_sections'),
+            layout_config=data.get('layout_config')
         )
-        db.session.add(resume)
+        db.session.add(new_resume)
         db.session.commit()
-        return {"message":"Resume created", "resume_id":resume.id}, 201
-
-
-    @staticmethod
-    def get_resume(user_id, resume_id):
-        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
-
-        if not resume: return {"error":"Resume not found"}, 404
-        return resume, 200 # *needs to be serialised in controller*
+        return {"message": "Resume created successfully", "resume_id": new_resume.id}, 201
 
     @staticmethod
     def get_all_resumes(user_id):
         resumes = Resume.query.filter_by(user_id=user_id).all()
-        return [{"id": r.id, "title": r.title, "name": r.name, "summary": r.summary, "updated_at": r.updated_at} for r in resumes], 200
+        return {
+            "resumes": [
+                {
+                    "id": r.id, 
+                    "title": r.title, 
+                    "name": r.name,
+                    "updated_at": r.updated_at.isoformat()
+                } for r in resumes
+            ]
+        }, 200
+
+    @staticmethod
+    def get_resume(user_id, resume_id):
+        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+        if not resume:
+            return {"error": "Resume not found"}, 404
+        return resume, 200
 
     @staticmethod
     def update_resume(user_id, resume_id, data):
         resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
-        if not resume: return {"error":"Resume not found"}, 404
+        if not resume:
+            return {"error": "Resume not found"}, 404
 
-        if "title" in data: resume.title = data["title"]
-        if "name" in data: resume.name = data["name"]
-        if "summary" in data: resume.summary = data["summary"]
-        if "designation" in data: resume.designation = data["designation"]
-        if "email" in data: resume.email = data["email"]
-        if "phone" in data: resume.phone = data["phone"]
-        if "location" in data: resume.location = data["location"]
+        # Update core fields if provided
+        for field in ['title', 'name', 'summary', 'designation', 'email', 'phone', 'location', 'active_sections', 'layout_config']:
+            if field in data:
+                setattr(resume, field, data[field])
 
         db.session.commit()
-        return {"message":"Resume updated"}, 200
+        return {"message": "Resume updated successfully"}, 200
 
     @staticmethod
     def delete_resume(user_id, resume_id):
         resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
-        if not resume: return {"error":"Resume not found"}, 404
+        if not resume:
+            return {"error": "Resume not found"}, 404
         db.session.delete(resume)
         db.session.commit()
-        return {"message":"Resume deleted"}, 200
+        return {"message": "Resume deleted successfully"}, 200
 
     @staticmethod
     def duplicate_resume(user_id, resume_id):
         original = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
-        if not original: return {"error":"Resume not found"}, 404
+        if not original:
+            return {"error": "Resume not found"}, 404
 
         copy = Resume(
             user_id=user_id,
-            title=original.title,
-            name=(original.name or original.title) + " (Copy)",
+            title=f"Copy of {original.title}",
+            name=original.name,
             summary=original.summary,
             designation=original.designation,
             email=original.email,
             phone=original.phone,
             location=original.location,
+            active_sections=original.active_sections,
+            layout_config=original.layout_config
         )
         db.session.add(copy)
-        db.session.flush()  # get copy.id
+        db.session.flush()
 
-        # Duplicate all associations to form new associations
+        # Copy all associations
         for assoc in original.skills:
             db.session.add(ResumeSkill(resume_id=copy.id, skill_id=assoc.skill_id, order=assoc.order))
         for assoc in original.experiences:
@@ -92,6 +105,8 @@ class ResumeService:
             db.session.add(ResumeCourse(resume_id=copy.id, course_id=assoc.course_id, order=assoc.order))
         for assoc in original.achievements:
             db.session.add(ResumeAchievement(resume_id=copy.id, achievement_id=assoc.achievement_id, order=assoc.order))
+        for assoc in original.custom_items:
+            db.session.add(ResumeCustomItem(resume_id=copy.id, custom_item_id=assoc.custom_item_id, order=assoc.order))
 
         db.session.commit()
         return {"message":"Resume duplicated", "resume_id": copy.id}, 201
@@ -100,187 +115,125 @@ class ResumeService:
 # -------------------------------------------------------------------------------------------------------
     # ADD/REMOVE/REORDER Skills from resume:
 
-    @staticmethod # same logic as in add_experience_to_resume
+    @staticmethod
     def add_skill_to_resume(user_id, resume_id, skill_id, order):
-        # check resume exists
         resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
-        if not resume: return {"error":"Resume not found"}, 404
+        if not resume: return {"error": "Resume not found"}, 404
 
-        # check skill_id to be present in Skill table
         skill = Skill.query.get(skill_id)
-        if not skill: return {"error":"Invalid skill"}, 400
+        if not skill: return {"error": "Skill not found"}, 404
 
-        # new skill to be added should not be present with the same skill_id in the resume
-        existing = ResumeSkill.query.filter_by(
-            resume_id = resume_id,
-            skill_id = skill_id
-        ).first()
-        if existing: return {"error":"Skill already added"}, 400
+        existing = ResumeSkill.query.filter_by(resume_id=resume_id, skill_id=skill_id).first()
+        if existing: return {"error": "Skill already added to resume"}, 400
 
-        # list of skills in the joint table for a given resume_id, sorted in order
-        associations = ResumeSkill.query.filter_by(resume_id=resume_id).order_by(ResumeSkill.order).all()
-        
-        # making new skill's given order in-bound:
-        if order < 0: order = 0
-        if order > len(associations): order = len(associations) # put at end
+        max_order = db.session.query(db.func.max(ResumeSkill.order)).filter_by(resume_id=resume_id).scalar()
+        next_order = (max_order or 0) + 1
 
-        # shift the other orders by 1, that are affected by insertion:
-        for assoc in associations: 
-            if assoc.order >= order: assoc.order += 1
-        
-        # making the new row for the joint table
-        new_assoc = ResumeSkill(
-            resume_id = resume_id,
-            skill_id = skill_id,
-            order = order
-        )
-
+        new_assoc = ResumeSkill(resume_id=resume_id, skill_id=skill_id, order=next_order)
         db.session.add(new_assoc)
         db.session.commit()
-        return {"message":"Skill added successfully"}, 201
-
+        return {"message": "Skill added to resume"}, 201
 
     @staticmethod
     def remove_skill_from_resume(user_id, resume_id, skill_id):
         resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
         if not resume: return {"error": "Resume not found"}, 404
 
-        assoc = ResumeSkill.query.filter_by(
-            skill_id = skill_id, 
-            resume_id=resume_id
-        ).first() # the single row from joint table rep. the experience to be deleted
+        assoc = ResumeSkill.query.filter_by(resume_id=resume_id, skill_id=skill_id).first()
+        if not assoc: return {"error": "Skill not in resume"}, 404
 
-        if not assoc: return {"error":"Skill not in resume"}, 404
-
-        removed_order = assoc.order # decrement by 1 to all orders bigger than this
-
+        removed_order = assoc.order
         db.session.delete(assoc)
-        remaining = ResumeSkill.query.filter_by(resume_id=resume_id).all()
-        for item in remaining:
-            if item.order > removed_order: item.order -= 1
-
-        db.session.commit()
-        return {"message":"Skill removed"}, 200
-        
-
-    @staticmethod
-    def reorder_skills(user_id, resume_id, ordered_skill_ids):
-        # check if resume exists by id:
-        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
-        if not resume: return {"error":"Resume not found"}, 404
-
-        # list of skills in joint table
-        associations = ResumeSkill.query.filter_by(
-            resume_id=resume_id
-        ).all()
-
-        # check if current skill id list does contain all elements given in new ordered skill list
-        existing_ids = {a.skill_id for a in associations}
-        if set(ordered_skill_ids) != existing_ids:
-            return {"error": "Invalid ordering set"}, 400
-
-        # map for skill_id:item to link update order for each skill_id using the item
-        id_to_assoc = {a.skill_id: a for a in associations}
-
-        for assoc in associations:
-            assoc.order += 1000
         db.session.flush()
 
-        for new_order, skill_id in enumerate(ordered_skill_ids): # the index in give list rep. new order
-            id_to_assoc[skill_id].order = new_order
+        # Update orders of remaining skills
+        remaining = ResumeSkill.query.filter_by(resume_id=resume_id).all()
+        for s in remaining:
+            if s.order > removed_order:
+                s.order -= 1
 
         db.session.commit()
-        return {"message": "Skills Reordered"}, 200
-    
+        return {"message": "Skill removed from resume"}, 200
+
+    @staticmethod
+    def reorder_skills(user_id, resume_id, ordered_ids):
+        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+        if not resume: return {"error": "Resume not found"}, 404
+
+        skills = ResumeSkill.query.filter_by(resume_id=resume_id).all()
+        
+        # Temporarily offset to avoid unique constraint collisions
+        for s in skills:
+            s.order += 10000
+        db.session.flush()
+
+        id_to_skill = {s.skill_id: s for s in skills}
+        for index, s_id in enumerate(ordered_ids):
+            if s_id in id_to_skill:
+                id_to_skill[s_id].order = index + 1
+
+        db.session.commit()
+        return {"message": "Skills reordered"}, 200
+
 
 # -------------------------------------------------------------------------------------------------------
     # ADD/REMOVE/REORDER Experience from resume:
 
     @staticmethod
     def add_experience_to_resume(user_id, resume_id, experience_id, order):
-        # check resume exists
         resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
-        if not resume:
-            return {"error":"Resume not found"}, 404
+        if not resume: return {"error": "Resume not found"}, 404
 
-        # check experience_id to be present in Experience table and linked to the same profile
         exp = Experience.query.get(experience_id)
-        if not exp or exp.profile.user_id != user_id:
-            return {"error":"Invalid experience"}, 400
+        if not exp: return {"error": "Experience not found"}, 404
 
-        # new experience to be added should not be present with the same experience_id in the resume
-        existing = ResumeExperience.query.filter_by(
-            resume_id=resume_id,
-            experience_id=experience_id
-        ).first()
-        if existing: return {"error":"Experience already added"}, 400
+        existing = ResumeExperience.query.filter_by(resume_id=resume_id, experience_id=experience_id).first()
+        if existing: return {"error": "Experience already added"}, 400
 
-        # list of experiences in the joint table for a given resume_id, sorted in order
-        associations = ResumeExperience.query.filter_by(resume_id=resume_id).order_by(ResumeExperience.order).all()
+        max_order = db.session.query(db.func.max(ResumeExperience.order)).filter_by(resume_id=resume_id).scalar()
+        next_order = (max_order or 0) + 1
 
-        # making the new give order in-bound
-        if order < 0: order = 0 # will require shifting
-        if order > len(associations): order = len(associations) # append then new exp at end
-
-        # shift the other orders by 1, that are affected by insertion:
-        for assoc in associations:
-            if assoc.order >= order: assoc.order += 1
-
-        # making the new row for the joint table
-        new_assoc = ResumeExperience(resume_id=resume_id, experience_id=experience_id, order=order)
+        new_assoc = ResumeExperience(resume_id=resume_id, experience_id=experience_id, order=next_order)
         db.session.add(new_assoc)
         db.session.commit()
-        return {"message": "Experience added successfully"}, 201 # 201 is for successful additions
-
+        return {"message": "Experience added to resume"}, 201
 
     @staticmethod
     def remove_experience_from_resume(user_id, resume_id, experience_id):
         resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
         if not resume: return {"error": "Resume not found"}, 404
 
-        assoc = ResumeExperience.query.filter_by(
-            experience_id = experience_id, 
-            resume_id=resume_id
-        ).first() # the single row from joint table rep. the experience to be deleted
+        assoc = ResumeExperience.query.filter_by(resume_id=resume_id, experience_id=experience_id).first()
+        if not assoc: return {"error": "Experience not in resume"}, 404
 
-        if not assoc: return {"error":"Experience not in resume"}, 404
-
-        removed_order = assoc.order # decrement by 1 to all orders bigger than this
-
+        removed_order = assoc.order
         db.session.delete(assoc)
-        remaining = ResumeExperience.query.filter_by(resume_id=resume_id).all()
-        for item in remaining:
-            if item.order > removed_order: item.order -= 1
-
-        db.session.commit()
-        return {"message":"Experience removed"}, 200
-
-
-    @staticmethod
-    def reorder_experiences(user_id, resume_id, ordered_experience_ids):
-        # check if resume exists by id:
-        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
-        if not resume: return {"error":"Resume not found"}, 404
-
-        # list of experiences in joint table
-        associations = ResumeExperience.query.filter_by(
-            resume_id=resume_id
-        ).all()
-
-        # check if current experience id list does contain all elements given in new ordered experience list
-        existing_ids = {a.experience_id for a in associations}
-        if set(ordered_experience_ids) != existing_ids:
-            return {"error": "Invalid ordering set"}, 400
-
-        # map for experience_id:item to link update order for each experience_id using the item
-        id_to_assoc = {a.experience_id: a for a in associations}
-
-        for assoc in associations:
-            assoc.order += 1000 # change all orders temporarily so that temporary duplicate pairs arent created while reordering
         db.session.flush()
 
-        for new_order, exp_id in enumerate(ordered_experience_ids): # the index in give list rep. new order
-            id_to_assoc[exp_id].order = new_order
+        remaining = ResumeExperience.query.filter_by(resume_id=resume_id).all()
+        for item in remaining:
+            if item.order > removed_order:
+                item.order -= 1
+
+        db.session.commit()
+        return {"message": "Experience removed from resume"}, 200
+
+    @staticmethod
+    def reorder_experiences(user_id, resume_id, ordered_ids):
+        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+        if not resume: return {"error": "Resume not found"}, 404
+
+        exps = ResumeExperience.query.filter_by(resume_id=resume_id).all()
+
+        # Offset to avoid collisions
+        for e in exps:
+            e.order += 10000
+        db.session.flush()
+
+        id_to_exp = {e.experience_id: e for e in exps}
+        for index, e_id in enumerate(ordered_ids):
+            if e_id in id_to_exp:
+                id_to_exp[e_id].order = index + 1
 
         db.session.commit()
         return {"message": "Experiences reordered"}, 200
@@ -288,93 +241,61 @@ class ResumeService:
 
 # -------------------------------------------------------------------------------------------------------
     # ADD/REMOVE/REORDER Education from resume:
-    
+
     @staticmethod
     def add_education_to_resume(user_id, resume_id, education_id, order):
-        # check resume exists
         resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
-        if not resume:
-            return {"error":"Resume not found"}, 404
+        if not resume: return {"error": "Resume not found"}, 404
 
-        # check education_id to be present in Education table and linked to the same profile
         edu = Education.query.get(education_id)
-        if not edu or edu.profile.user_id != user_id:
-            return {"error":"Invalid education"}, 400
+        if not edu: return {"error": "Education not found"}, 404
 
-        # new education to be added should not be present with the same education_id in the resume
-        existing = ResumeEducation.query.filter_by(
-            resume_id=resume_id,
-            education_id=education_id
-        ).first()
-        if existing: return {"error":"Education already added"}, 400
+        existing = ResumeEducation.query.filter_by(resume_id=resume_id, education_id=education_id).first()
+        if existing: return {"error": "Education already added"}, 400
 
-        # list of educations in the joint table for a given resume_id, sorted in order
-        associations = ResumeEducation.query.filter_by(resume_id=resume_id).order_by(ResumeEducation.order).all()
+        max_order = db.session.query(db.func.max(ResumeEducation.order)).filter_by(resume_id=resume_id).scalar()
+        next_order = (max_order or 0) + 1
 
-        # making the new give order in-bound
-        if order < 0: order = 0 # will require shifting
-        if order > len(associations): order = len(associations) # append then new edu at end
-
-        # shift the other orders by 1, that are affected by insertion:
-        for assoc in associations:
-            if assoc.order >= order: assoc.order += 1
-
-        # making the new row for the joint table
-        new_assoc = ResumeEducation(
-            resume_id = resume_id,
-            education_id = education_id,
-            order = order
-        )
-
+        new_assoc = ResumeEducation(resume_id=resume_id, education_id=education_id, order=next_order)
         db.session.add(new_assoc)
         db.session.commit()
-        return {"message": "Education added successfully"}, 201
-
+        return {"message": "Education added to resume"}, 201
 
     @staticmethod
     def remove_education_from_resume(user_id, resume_id, education_id):
         resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
         if not resume: return {"error": "Resume not found"}, 404
 
-        assoc = ResumeEducation.query.filter_by(
-            education_id = education_id, 
-            resume_id=resume_id
-        ).first()
-
-        if not assoc: return {"error":"Education not in resume"}, 404
+        assoc = ResumeEducation.query.filter_by(resume_id=resume_id, education_id=education_id).first()
+        if not assoc: return {"error": "Education not in resume"}, 404
 
         removed_order = assoc.order
-
         db.session.delete(assoc)
-        remaining = ResumeEducation.query.filter_by(resume_id=resume_id).all()
-        for item in remaining:
-            if item.order > removed_order: item.order -= 1
-
-        db.session.commit()
-        return {"message":"Education removed"}, 200
-
-
-    @staticmethod
-    def reorder_educations(user_id, resume_id, ordered_education_ids):
-        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
-        if not resume: return {"error":"Resume not found"}, 404
-
-        associations = ResumeEducation.query.filter_by(
-            resume_id=resume_id
-        ).all()
-
-        existing_ids = {a.education_id for a in associations}
-        if set(ordered_education_ids) != existing_ids:
-            return {"error": "Invalid ordering set"}, 400
-
-        id_to_assoc = {a.education_id: a for a in associations}
-
-        for assoc in associations:
-            assoc.order += 1000
         db.session.flush()
 
-        for new_order, edu_id in enumerate(ordered_education_ids):
-            id_to_assoc[edu_id].order = new_order
+        remaining = ResumeEducation.query.filter_by(resume_id=resume_id).all()
+        for item in remaining:
+            if item.order > removed_order:
+                item.order -= 1
+
+        db.session.commit()
+        return {"message": "Education removed from resume"}, 200
+
+    @staticmethod
+    def reorder_educations(user_id, resume_id, ordered_ids):
+        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+        if not resume: return {"error": "Resume not found"}, 404
+
+        edus = ResumeEducation.query.filter_by(resume_id=resume_id).all()
+
+        for e in edus:
+            e.order += 10000
+        db.session.flush()
+
+        id_to_edu = {e.education_id: e for e in edus}
+        for index, e_id in enumerate(ordered_ids):
+            if e_id in id_to_edu:
+                id_to_edu[e_id].order = index + 1
 
         db.session.commit()
         return {"message": "Educations reordered"}, 200
@@ -388,14 +309,19 @@ class ResumeService:
         resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
         if not resume: return {"error": "Resume not found"}, 404
 
-        existing = ResumeProject.query.filter_by(resume_id=resume_id, project_id=project_id).first()
-        if existing: return {"error": "Project already in resume"}, 400
+        project = Project.query.get(project_id)
+        if not project: return {"error": "Project not found"}, 404
 
-        new_assoc = ResumeProject(resume_id=resume_id, project_id=project_id, order=order)
+        existing = ResumeProject.query.filter_by(resume_id=resume_id, project_id=project_id).first()
+        if existing: return {"error": "Project already added"}, 400
+
+        max_order = db.session.query(db.func.max(ResumeProject.order)).filter_by(resume_id=resume_id).scalar()
+        next_order = (max_order or 0) + 1
+
+        new_assoc = ResumeProject(resume_id=resume_id, project_id=project_id, order=next_order)
         db.session.add(new_assoc)
         db.session.commit()
         return {"message": "Project added to resume"}, 201
-
 
     @staticmethod
     def remove_project_from_resume(user_id, resume_id, project_id):
@@ -417,25 +343,21 @@ class ResumeService:
         db.session.commit()
         return {"message": "Project removed from resume"}, 200
 
-
     @staticmethod
     def reorder_projects(user_id, resume_id, ordered_ids):
         resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
         if not resume: return {"error": "Resume not found"}, 404
 
-        associations = ResumeProject.query.filter_by(resume_id=resume_id).all()
-        existing_ids = {a.project_id for a in associations}
-        if set(ordered_ids) != existing_ids:
-            return {"error": "Invalid ordering set"}, 400
+        projects = ResumeProject.query.filter_by(resume_id=resume_id).all()
 
-        id_to_assoc = {a.project_id: a for a in associations}
-
-        for assoc in associations:
-            assoc.order += 1000
+        for p in projects:
+            p.order += 10000
         db.session.flush()
 
-        for new_order, p_id in enumerate(ordered_ids):
-            id_to_assoc[p_id].order = new_order
+        id_to_proj = {p.project_id: p for p in projects}
+        for index, p_id in enumerate(ordered_ids):
+            if p_id in id_to_proj:
+                id_to_proj[p_id].order = index + 1
 
         db.session.commit()
         return {"message": "Projects reordered"}, 200
@@ -449,14 +371,19 @@ class ResumeService:
         resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
         if not resume: return {"error": "Resume not found"}, 404
 
-        existing = ResumeCertification.query.filter_by(resume_id=resume_id, certification_id=certification_id).first()
-        if existing: return {"error": "Certification already in resume"}, 400
+        cert = Certification.query.get(certification_id)
+        if not cert: return {"error": "Certification not found"}, 404
 
-        new_assoc = ResumeCertification(resume_id=resume_id, certification_id=certification_id, order=order)
+        existing = ResumeCertification.query.filter_by(resume_id=resume_id, certification_id=certification_id).first()
+        if existing: return {"error": "Certification already added"}, 400
+
+        max_order = db.session.query(db.func.max(ResumeCertification.order)).filter_by(resume_id=resume_id).scalar()
+        next_order = (max_order or 0) + 1
+
+        new_assoc = ResumeCertification(resume_id=resume_id, certification_id=certification_id, order=next_order)
         db.session.add(new_assoc)
         db.session.commit()
         return {"message": "Certification added to resume"}, 201
-
 
     @staticmethod
     def remove_certification_from_resume(user_id, resume_id, certification_id):
@@ -478,25 +405,23 @@ class ResumeService:
         db.session.commit()
         return {"message": "Certification removed from resume"}, 200
 
-
     @staticmethod
     def reorder_certifications(user_id, resume_id, ordered_ids):
         resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
         if not resume: return {"error": "Resume not found"}, 404
 
-        associations = ResumeCertification.query.filter_by(resume_id=resume_id).all()
-        existing_ids = {a.certification_id for a in associations}
-        if set(ordered_ids) != existing_ids:
-            return {"error": "Invalid ordering set"}, 400
-
-        id_to_assoc = {a.certification_id: a for a in associations}
-
-        for assoc in associations:
-            assoc.order += 1000
+        certs = ResumeCertification.query.filter_by(resume_id=resume_id).all()
+        
+        # Safe offset
+        for c in certs:
+            c.order += 10000
         db.session.flush()
 
-        for new_order, cert_id in enumerate(ordered_ids):
-            id_to_assoc[cert_id].order = new_order
+        id_to_cert = {c.certification_id: c for c in certs}
+
+        for index, c_id in enumerate(ordered_ids):
+            if c_id in id_to_cert:
+                id_to_cert[c_id].order = index + 1
 
         db.session.commit()
         return {"message": "Certifications reordered"}, 200
@@ -510,14 +435,19 @@ class ResumeService:
         resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
         if not resume: return {"error": "Resume not found"}, 404
 
-        existing = ResumeCourse.query.filter_by(resume_id=resume_id, course_id=course_id).first()
-        if existing: return {"error": "Course already in resume"}, 400
+        course = Course.query.get(course_id)
+        if not course: return {"error": "Course not found"}, 404
 
-        new_assoc = ResumeCourse(resume_id=resume_id, course_id=course_id, order=order)
+        existing = ResumeCourse.query.filter_by(resume_id=resume_id, course_id=course_id).first()
+        if existing: return {"error": "Course already added"}, 400
+
+        max_order = db.session.query(db.func.max(ResumeCourse.order)).filter_by(resume_id=resume_id).scalar()
+        next_order = (max_order or 0) + 1
+
+        new_assoc = ResumeCourse(resume_id=resume_id, course_id=course_id, order=next_order)
         db.session.add(new_assoc)
         db.session.commit()
         return {"message": "Course added to resume"}, 201
-
 
     @staticmethod
     def remove_course_from_resume(user_id, resume_id, course_id):
@@ -539,25 +469,23 @@ class ResumeService:
         db.session.commit()
         return {"message": "Course removed from resume"}, 200
 
-
     @staticmethod
     def reorder_courses(user_id, resume_id, ordered_ids):
         resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
         if not resume: return {"error": "Resume not found"}, 404
 
-        associations = ResumeCourse.query.filter_by(resume_id=resume_id).all()
-        existing_ids = {a.course_id for a in associations}
-        if set(ordered_ids) != existing_ids:
-            return {"error": "Invalid ordering set"}, 400
-
-        id_to_assoc = {a.course_id: a for a in associations}
-
-        for assoc in associations:
-            assoc.order += 1000
+        courses = ResumeCourse.query.filter_by(resume_id=resume_id).all()
+        
+        # Safe offset
+        for c in courses:
+            c.order += 10000
         db.session.flush()
 
-        for new_order, c_id in enumerate(ordered_ids):
-            id_to_assoc[c_id].order = new_order
+        id_to_course = {c.course_id: c for c in courses}
+
+        for index, c_id in enumerate(ordered_ids):
+            if c_id in id_to_course:
+                id_to_course[c_id].order = index + 1
 
         db.session.commit()
         return {"message": "Courses reordered"}, 200
@@ -571,14 +499,19 @@ class ResumeService:
         resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
         if not resume: return {"error": "Resume not found"}, 404
 
-        existing = ResumeAchievement.query.filter_by(resume_id=resume_id, achievement_id=achievement_id).first()
-        if existing: return {"error": "Achievement already in resume"}, 400
+        achievement = Achievement.query.get(achievement_id)
+        if not achievement: return {"error": "Achievement not found"}, 404
 
-        new_assoc = ResumeAchievement(resume_id=resume_id, achievement_id=achievement_id, order=order)
+        existing = ResumeAchievement.query.filter_by(resume_id=resume_id, achievement_id=achievement_id).first()
+        if existing: return {"error": "Achievement already added"}, 400
+
+        max_order = db.session.query(db.func.max(ResumeAchievement.order)).filter_by(resume_id=resume_id).scalar()
+        next_order = (max_order or 0) + 1
+
+        new_assoc = ResumeAchievement(resume_id=resume_id, achievement_id=achievement_id, order=next_order)
         db.session.add(new_assoc)
         db.session.commit()
         return {"message": "Achievement added to resume"}, 201
-
 
     @staticmethod
     def remove_achievement_from_resume(user_id, resume_id, achievement_id):
@@ -600,25 +533,87 @@ class ResumeService:
         db.session.commit()
         return {"message": "Achievement removed from resume"}, 200
 
-
     @staticmethod
     def reorder_achievements(user_id, resume_id, ordered_ids):
         resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
         if not resume: return {"error": "Resume not found"}, 404
 
-        associations = ResumeAchievement.query.filter_by(resume_id=resume_id).all()
-        existing_ids = {a.achievement_id for a in associations}
-        if set(ordered_ids) != existing_ids:
-            return {"error": "Invalid ordering set"}, 400
-
-        id_to_assoc = {a.achievement_id: a for a in associations}
-
-        for assoc in associations:
-            assoc.order += 1000
+        achievements = ResumeAchievement.query.filter_by(resume_id=resume_id).all()
+        
+        # Safe offset
+        for a in achievements:
+            a.order += 10000
         db.session.flush()
 
-        for new_order, a_id in enumerate(ordered_ids):
-            id_to_assoc[a_id].order = new_order
+        id_to_assoc = {a.achievement_id: a for a in achievements}
+
+        for index, a_id in enumerate(ordered_ids):
+            if a_id in id_to_assoc:
+                id_to_assoc[a_id].order = index + 1
 
         db.session.commit()
         return {"message": "Achievements reordered"}, 200
+
+
+# -------------------------------------------------------------------------------------------------------
+    # ADD/REMOVE/REORDER Custom-Item from resume:
+
+    @staticmethod
+    def add_custom_item_to_resume(user_id, resume_id, custom_item_id, order):
+        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+        if not resume: return {"error": "Resume not found"}, 404
+
+        custom_item = CustomItem.query.get(custom_item_id)
+        if not custom_item: return {"error": "Custom item not found"}, 404
+
+        existing = ResumeCustomItem.query.filter_by(resume_id=resume_id, custom_item_id=custom_item_id).first()
+        if existing: return {"error": "Custom item already added"}, 400
+
+        max_order = db.session.query(db.func.max(ResumeCustomItem.order)).filter_by(resume_id=resume_id).scalar()
+        next_order = (max_order or 0) + 1
+
+        new_assoc = ResumeCustomItem(resume_id=resume_id, custom_item_id=custom_item_id, order=next_order)
+        db.session.add(new_assoc)
+        db.session.commit()
+        return {"message": "Custom item added to resume"}, 201
+
+    @staticmethod
+    def remove_custom_item_from_resume(user_id, resume_id, custom_item_id):
+        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+        if not resume: return {"error": "Resume not found"}, 404
+
+        assoc = ResumeCustomItem.query.filter_by(resume_id=resume_id, custom_item_id=custom_item_id).first()
+        if not assoc: return {"error": "Custom item not in resume"}, 404
+
+        removed_order = assoc.order
+        db.session.delete(assoc)
+        db.session.flush()
+
+        remaining = ResumeCustomItem.query.filter_by(resume_id=resume_id).all()
+        for item in remaining:
+            if item.order > removed_order:
+                item.order -= 1
+
+        db.session.commit()
+        return {"message": "Custom item removed from resume"}, 200
+
+    @staticmethod
+    def reorder_custom_items(user_id, resume_id, ordered_ids):
+        resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+        if not resume: return {"error": "Resume not found"}, 404
+
+        assocs = ResumeCustomItem.query.filter_by(resume_id=resume_id).all()
+        
+        # Safe offset
+        for a in assocs:
+            a.order += 10000
+        db.session.flush()
+
+        id_to_assoc = {a.custom_item_id: a for a in assocs}
+
+        for index, item_id in enumerate(ordered_ids):
+            if item_id in id_to_assoc:
+                id_to_assoc[item_id].order = index + 1
+
+        db.session.commit()
+        return {"message": "Custom items reordered"}, 200

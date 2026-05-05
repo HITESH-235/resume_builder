@@ -10,6 +10,7 @@ from .schema import (
     AddCertificationSchema,
     AddCourseSchema,
     AddAchievementSchema,
+    AddCustomItemSchema,
     ReorderSchema,
     UpdateResumeSchema
 )
@@ -48,6 +49,8 @@ class ResumeController:
             "email": response.email,
             "phone": response.phone,
             "location": response.location,
+            "active_sections": response.active_sections,
+            "layout_config": response.layout_config,
 
             "skills": [
                 {
@@ -117,6 +120,17 @@ class ResumeController:
                     "date": assoc.achievement.date.strftime("%Y-%m-%d"),
                     "order": assoc.order
                 } for assoc in sorted(response.achievements, key=lambda x: x.order)
+            ],
+            "custom_items": [
+                {
+                    "id": assoc.custom_item.id,
+                    "title": assoc.custom_item.title,
+                    "subtitle": assoc.custom_item.subtitle,
+                    "start_date": assoc.custom_item.start_date.strftime("%Y-%m-%d") if assoc.custom_item.start_date else "",
+                    "end_date": assoc.custom_item.end_date.strftime("%Y-%m-%d") if assoc.custom_item.end_date else "",
+                    "description": assoc.custom_item.description,
+                    "order": assoc.order
+                } for assoc in sorted(response.custom_items, key=lambda x: x.order)
             ]
         }), 200
     
@@ -149,7 +163,7 @@ class ResumeController:
         if not data: return jsonify({"error":"Invalid JSON"}), 400
 
         errors = UpdateResumeSchema().validate(data)
-        if errors: return {"status":"error", "errors":errors}, 400
+        if errors: return jsonify({"status":"error", "errors":errors}), 400
 
         response, status = ResumeService.update_resume(user_id, resume_id, data)
         return jsonify(response), status
@@ -406,4 +420,39 @@ class ResumeController:
         if errors: return jsonify({"status":"error", "errors":errors}), 400
 
         response, status = ResumeService.reorder_achievements(user_id, resume_id, data["ordered_ids"])
+        return jsonify(response), status
+
+
+# --------------------------------------------------------------------------------------------------------
+    # Custom Items in Resume all functions:
+
+    @staticmethod
+    def add_custom_item_to_resume(resume_id):
+        user_id = int(get_jwt_identity())
+        data = request.get_json()
+
+        errors = AddCustomItemSchema().validate(data)
+        if errors: return jsonify({"status": "error", "errors": errors}), 400
+
+        response, status = ResumeService.add_custom_item_to_resume(user_id, resume_id, data["custom_item_id"], data["order"])
+        return jsonify(response), status
+
+
+    @staticmethod
+    def remove_custom_item_from_resume(resume_id, custom_item_id):
+        user_id = int(get_jwt_identity())
+
+        response, status = ResumeService.remove_custom_item_from_resume(user_id, resume_id, custom_item_id)
+        return jsonify(response), status
+
+
+    @staticmethod
+    def reorder_custom_items(resume_id):
+        user_id = int(get_jwt_identity())
+        data = request.get_json()
+
+        errors = ReorderSchema().validate(data)
+        if errors: return jsonify({"status": "error", "errors": errors}), 400
+
+        response, status = ResumeService.reorder_custom_items(user_id, resume_id, data["ordered_ids"])
         return jsonify(response), status

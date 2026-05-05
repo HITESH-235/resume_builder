@@ -170,3 +170,22 @@ def remove_achievement(resume_id, item_id):
 @jwt_required()
 def reorder_achievement(resume_id):
     return ResumeController.reorder_achievement(resume_id)
+
+
+# --------------------------------------------------------------------------------------------------------------
+# Resume's custom item routes:
+
+@resume_bp.route('/<int:resume_id>/custom-item', methods=['POST'])
+@jwt_required()
+def add_custom_item_to_resume(resume_id):
+    return ResumeController.add_custom_item_to_resume(resume_id)
+
+@resume_bp.route('/<int:resume_id>/custom-item/<int:custom_item_id>', methods=['DELETE'])
+@jwt_required()
+def remove_custom_item_from_resume(resume_id, custom_item_id):
+    return ResumeController.remove_custom_item_from_resume(resume_id, custom_item_id)
+
+@resume_bp.route('/<int:resume_id>/custom-item/order', methods=['PUT'])
+@jwt_required()
+def reorder_custom_items(resume_id):
+    return ResumeController.reorder_custom_items(resume_id)
