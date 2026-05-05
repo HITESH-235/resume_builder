@@ -167,3 +167,30 @@ def update_achievement(item_id):
 @jwt_required()
 def delete_achievement(item_id):
     return ProfileController.delete_achievement(item_id)
+
+
+# ------------------------------------------------------------------------------------
+# CUSTOM ITEM routes:
+@profile_bp.route('/custom-item', methods=['POST'])
+@jwt_required()
+def add_custom_item():
+    return ProfileController.add_custom_item()
+
+@profile_bp.route('/custom-item', methods=['GET'])
+@jwt_required()
+def get_custom_items():
+    return ProfileController.get_custom_item()
+@profile_bp.route('/custom-item/<int:item_id>', methods=['PUT'])
+@jwt_required()
+def update_custom_item(item_id):
+    return ProfileController.update_custom_item(item_id)
+
+@profile_bp.route('/custom-item/order', methods=['PUT'])
+@jwt_required()
+def reorder_custom_items():
+    return ProfileController.reorder_custom_items()
+
+@profile_bp.route('/custom-item/<int:item_id>', methods=['DELETE'])
+@jwt_required()
+def delete_custom_item(item_id):
+    return ProfileController.delete_custom_item(item_id)

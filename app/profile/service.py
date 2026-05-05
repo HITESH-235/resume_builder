@@ -1,6 +1,5 @@
 from datetime import datetime
-from app.models import User, Experience, Skill, Education, Project, Certification, Course, Achievement
-from app.models import ResumeExperience, ResumeEducation, ResumeProject, ResumeCertification, ResumeCourse, ResumeAchievement
+from app.models import User, Experience, Skill, Education, Project, Certification, Course, Achievement, CustomItem, ResumeExperience, ResumeEducation, ResumeProject, ResumeCertification, ResumeCourse, ResumeAchievement, ResumeCustomItem
 # (otherwise user has backref to profile)
 from app.extensions.db import db
 
@@ -88,7 +87,18 @@ class ProfileService:
                 "certifications": certifications_data,
                 "courses": courses_data,
                 "achievements": achievements_data,
-                "skills": skills_data
+                "skills": skills_data,
+                "custom_items": [
+                    {
+                        "id": item.id,
+                        "title": item.title,
+                        "subtitle": item.subtitle,
+                        "start_date": item.start_date.strftime('%Y-%m-%d') if item.start_date else None,
+                        "end_date": item.end_date.strftime('%Y-%m-%d') if item.end_date else None,
+                        "description": item.description,
+                        "order": item.order
+                    } for item in sorted(profile.custom_items, key=lambda x: x.order)
+                ]
             }
         }, 200
 
@@ -578,10 +588,103 @@ class ProfileService:
     def delete_achievement(user_id, item_id):
         user = User.query.get(user_id)
         if not user or not user.profile: return {"error":"Profile not found"}, 404
+
         item = Achievement.query.filter_by(id=item_id, profile_id=user.profile.id).first()
         if not item: return {"error": "Achievement not found"}, 404
+
         # Remove any resume associations first to avoid FK constraint violations
         ResumeAchievement.query.filter_by(achievement_id=item_id).delete()
         db.session.delete(item)
         db.session.commit()
         return {"message": "Achievement deleted successfully"}, 200
+
+
+# --------------------------------------------------------------------------------------------------------------
+    # CUSTOM-ITEM (Flat) functions:
+
+    @staticmethod
+    def add_custom_item(user_id, data):
+        user = User.query.get(user_id)
+        if not user or not user.profile: return {"error":"Profile not found"}, 404
+        
+        # Determine order
+        max_order = db.session.query(db.func.max(CustomItem.order)).filter_by(profile_id=user.profile.id).scalar() or 0
+        
+        item = CustomItem(
+            profile_id=user.profile.id,
+            title=data["title"],
+            subtitle=data.get("subtitle"),
+            description=data.get("description"),
+            start_date=datetime.strptime(data["start_date"], '%Y-%m-%d').date() if data.get("start_date") else None,
+            end_date=datetime.strptime(data["end_date"], '%Y-%m-%d').date() if data.get("end_date") else None,
+            order=data.get("order", max_order + 1)
+        )
+        db.session.add(item)
+        db.session.commit()
+        return {"message": "Custom item added", "id": item.id}, 201
+
+    @staticmethod
+    def get_user_custom_items(user_id):
+        user = User.query.get(user_id)
+        if not user or not user.profile: return {"error":"Profile not found"}, 404
+        items = CustomItem.query.filter_by(profile_id=user.profile.id).all()
+        return {"custom_items": [
+            {
+                "id": item.id,
+                "title": item.title,
+                "subtitle": item.subtitle,
+                "start_date": item.start_date.strftime('%Y-%m-%d') if item.start_date else None,
+                "end_date": item.end_date.strftime('%Y-%m-%d') if item.end_date else None,
+                "description": item.description,
+                "order": item.order
+            } for item in sorted(items, key=lambda x: x.order)
+        ]}, 200
+
+    @staticmethod
+    def update_custom_item(user_id, item_id, data):
+        user = User.query.get(user_id)
+        if not user or not user.profile: return {"error":"Profile not found"}, 404
+        
+        item = CustomItem.query.filter_by(id=item_id, profile_id=user.profile.id).first()
+        if not item: return {"error": "Item not found"}, 404
+        
+        if "title" in data: item.title = data["title"]
+        if "subtitle" in data: item.subtitle = data["subtitle"]
+        if "description" in data: item.description = data["description"]
+        if "order" in data: item.order = data["order"]
+        
+        if "start_date" in data:
+            item.start_date = datetime.strptime(data["start_date"], '%Y-%m-%d').date() if data["start_date"] else None
+        if "end_date" in data:
+            item.end_date = datetime.strptime(data["end_date"], '%Y-%m-%d').date() if data["end_date"] else None
+            
+        db.session.commit()
+        return {"message": "Custom item updated"}, 200
+
+    # the order for all other sections are pre designed, only need to order customs items
+    @staticmethod
+    def reorder_custom_items(user_id, ordered_ids):
+        user = User.query.get(user_id)
+        if not user or not user.profile: return {"error":"Profile not found"}, 404
+        
+        items = CustomItem.query.filter_by(profile_id=user.profile.id).all()
+        id_to_item = {item.id: item for item in items}
+        
+        for index, item_id in enumerate(ordered_ids):
+            if item_id in id_to_item:
+                id_to_item[item_id].order = index + 1
+                
+        db.session.commit()
+        return {"message": "Profile items reordered"}, 200
+
+    @staticmethod
+    def delete_custom_item(user_id, item_id):
+        user = User.query.get(user_id)
+        if not user or not user.profile: return {"error":"Profile not found"}, 404
+        
+        item = CustomItem.query.filter_by(id=item_id, profile_id=user.profile.id).first()
+        if not item: return {"error": "Item not found"}, 404
+        
+        db.session.delete(item)
+        db.session.commit()
+        return {"message": "Item deleted"}, 200

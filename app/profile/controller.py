@@ -1,6 +1,6 @@
 from flask import request, jsonify
 from flask_jwt_extended import get_jwt_identity 
-from .schema import ExperienceSchema, ExperienceUpdateSchema, ProfileUpdateSchema, SkillSchema, EducationSchema, EducationUpdateSchema, ProjectSchema, CertificationSchema, CourseSchema, AchievementSchema
+from .schema import ExperienceSchema, ExperienceUpdateSchema, ProfileUpdateSchema, SkillSchema, EducationSchema, EducationUpdateSchema, ProjectSchema, CertificationSchema, CourseSchema, AchievementSchema, CustomItemSchema, CustomItemUpdateSchema, ReorderSchema
 from .service import ProfileService
 
 
@@ -242,8 +242,10 @@ class ProfileController:
         user_id = int(get_jwt_identity())
         data = request.get_json()
         if not data: return jsonify({"error":"Invalid JSON"}), 400
+
         errors = AchievementSchema().validate(data)
         if errors: return jsonify({"status":"error", "errors":errors}), 400
+
         clean = AchievementSchema().load(data)
         response, status = ProfileService.add_achievement(user_id, clean)
         return jsonify(response), status
@@ -259,8 +261,10 @@ class ProfileController:
         user_id = int(get_jwt_identity())
         data = request.get_json()
         if not data: return jsonify({"error":"Invalid JSON"}), 400
+
         errors = AchievementSchema().validate(data)
         if errors: return jsonify({"status":"error", "errors":errors}), 400
+
         response, status = ProfileService.update_achievement(user_id, item_id, data)
         return jsonify(response), status
 
@@ -268,4 +272,54 @@ class ProfileController:
     def delete_achievement(item_id):
         user_id = int(get_jwt_identity())
         response, status = ProfileService.delete_achievement(user_id, item_id)
+        return jsonify(response), status
+
+
+    # CUSTOM ITEM methods:
+    @staticmethod
+    def add_custom_item():
+        user_id = int(get_jwt_identity())
+        data = request.get_json()
+        if not data: return jsonify({"error":"Invalid JSON"}), 400
+
+        errors = CustomItemSchema().validate(data)
+        if errors: return jsonify({"status":"error", "errors":errors}), 400
+
+        response, status = ProfileService.add_custom_item(user_id, data)
+        return jsonify(response), status
+
+    @staticmethod
+    def get_custom_item():
+        user_id = int(get_jwt_identity())
+        response, status = ProfileService.get_user_custom_items(user_id)
+        return jsonify(response), status
+
+    @staticmethod
+    def update_custom_item(item_id):
+        user_id = int(get_jwt_identity())
+        data = request.get_json()
+        if not data: return jsonify({"error":"Invalid JSON"}), 400
+
+        errors = CustomItemUpdateSchema().validate(data)
+        if errors: return jsonify({"status":"error", "errors":errors}), 400
+
+        response, status = ProfileService.update_custom_item(user_id, item_id, data)
+        return jsonify(response), status
+
+    @staticmethod
+    def reorder_custom_items():
+        user_id = int(get_jwt_identity())
+        data = request.get_json()
+        if not data: return jsonify({"error":"Invalid JSON"}), 400
+
+        errors = ReorderSchema().validate(data)
+        if errors: return jsonify({"status":"error", "errors":errors}), 400
+
+        response, status = ProfileService.reorder_custom_items(user_id, data["ordered_ids"])
+        return jsonify(response), status
+
+    @staticmethod
+    def delete_custom_item(item_id):
+        user_id = int(get_jwt_identity())
+        response, status = ProfileService.delete_custom_item(user_id, item_id)
         return jsonify(response), status
