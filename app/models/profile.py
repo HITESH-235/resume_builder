@@ -26,3 +26,4 @@ class Profile(db.Model):
     certifications = db.relationship("Certification", backref="profile", cascade="all, delete-orphan")
     courses = db.relationship("Course", backref="profile", cascade="all, delete-orphan")
     achievements = db.relationship("Achievement", backref="profile", cascade="all, delete-orphan")
+    custom_items = db.relationship("CustomItem", backref="profile", cascade="all, delete-orphan")

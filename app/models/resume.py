@@ -1,37 +1,34 @@
-from datetime import datetime, timezone
 from app.extensions.db import db
-
+from datetime import datetime, timezone
 
 class Resume(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+    __tablename__ = "resume"
 
+    id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(
         db.Integer,
-        db.ForeignKey('user.id'),  # fixed ForeignKey
+        db.ForeignKey('user.id'),
         nullable=False,
         index=True
     )
 
     # all resume specific fields:
-    title = db.Column(db.String(150), nullable=False)  # Displayed on the PDF
-    name = db.Column(db.String(150), nullable=True)     # Dashboard label / heading
+    title = db.Column(db.String(150), nullable=False)
+    name = db.Column(db.String(150), nullable=True)
     summary = db.Column(db.Text)
     designation = db.Column(db.String(150), nullable=True)
     email = db.Column(db.String(150), nullable=True)
     phone = db.Column(db.String(50), nullable=True)
     location = db.Column(db.String(150), nullable=True)
+    website = db.Column(db.String(255), nullable=True)
+    website_label = db.Column(db.String(100), nullable=True)
 
-    created_at = db.Column( # putting this column in Resume just as a good practice
-        db.DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc)
-    )
-    updated_at = db.Column(
-        db.DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc)
-    )
+    active_sections = db.Column(db.JSON, nullable=True)
+    layout_config = db.Column(db.JSON, nullable=True) 
 
-    # all many-many relationship (e.g. one resume-many exp, and vice versa)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
     skills = db.relationship("ResumeSkill", backref="resume", lazy="selectin", cascade="all, delete-orphan")
     experiences = db.relationship("ResumeExperience", backref="resume", lazy="selectin", cascade="all, delete-orphan")
     educations = db.relationship("ResumeEducation", backref="resume", lazy="selectin", cascade="all, delete-orphan")
@@ -39,17 +36,14 @@ class Resume(db.Model):
     certifications = db.relationship("ResumeCertification", backref="resume", lazy="selectin", cascade="all, delete-orphan")
     courses = db.relationship("ResumeCourse", backref="resume", lazy="selectin", cascade="all, delete-orphan")
     achievements = db.relationship("ResumeAchievement", backref="resume", lazy="selectin", cascade="all, delete-orphan")
+    custom_items = db.relationship("ResumeCustomItem", backref="resume", lazy="selectin", cascade="all, delete-orphan")
 
 
-class ResumeSkill(db.Model):  # moved out (not nested)
+class ResumeSkill(db.Model):
     resume_id = db.Column(db.Integer, db.ForeignKey("resume.id"), primary_key=True)
     skill_id = db.Column(db.Integer, db.ForeignKey("skill.id"), primary_key=True)
-    order = db.Column(db.Integer, nullable=False) # stores position in the order
+    order = db.Column(db.Integer, nullable=False)
     skill = db.relationship("Skill", backref="resume_links")
-
-    __table_args__ = ( # restricts duplicate combination of order and resume id
-        db.UniqueConstraint("resume_id", "order", name="uq_resume_skill_order"),
-    )
 
 
 class ResumeExperience(db.Model):
@@ -57,10 +51,6 @@ class ResumeExperience(db.Model):
     experience_id = db.Column(db.Integer, db.ForeignKey("experience.id"), primary_key=True)
     order = db.Column(db.Integer, nullable=False)
     experience = db.relationship("Experience", backref="resume_links")
-
-    __table_args__ = (
-        db.UniqueConstraint("resume_id", "order", name="uq_resume_exp_order"),
-    )
 
 
 class ResumeEducation(db.Model):
@@ -70,10 +60,6 @@ class ResumeEducation(db.Model):
     order = db.Column(db.Integer, default=0)
     education = db.relationship("Education", lazy="joined")
 
-    __table_args__ = (
-        db.UniqueConstraint("resume_id", "order", name="uq_resume_edu_order"),
-    )
-
 
 class ResumeProject(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -81,10 +67,6 @@ class ResumeProject(db.Model):
     project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
     order = db.Column(db.Integer, default=0)
     project = db.relationship("Project", lazy="joined")
-
-    __table_args__ = (
-        db.UniqueConstraint("resume_id", "order", name="uq_resume_proj_order"),
-    )
 
 
 class ResumeCertification(db.Model):
@@ -94,10 +76,6 @@ class ResumeCertification(db.Model):
     order = db.Column(db.Integer, default=0)
     certification = db.relationship("Certification", lazy="joined")
 
-    __table_args__ = (
-        db.UniqueConstraint("resume_id", "order", name="uq_resume_cert_order"),
-    )
-
 
 class ResumeCourse(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -105,10 +83,6 @@ class ResumeCourse(db.Model):
     course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
     order = db.Column(db.Integer, default=0)
     course = db.relationship("Course", lazy="joined")
-
-    __table_args__ = (
-        db.UniqueConstraint("resume_id", "order", name="uq_resume_course_order"),
-    )
 
 
 class ResumeAchievement(db.Model):
@@ -118,6 +92,10 @@ class ResumeAchievement(db.Model):
     order = db.Column(db.Integer, default=0)
     achievement = db.relationship("Achievement", lazy="joined")
 
-    __table_args__ = (
-        db.UniqueConstraint("resume_id", "order", name="uq_resume_achieve_order"),
-    )
+
+class ResumeCustomItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    resume_id = db.Column(db.Integer, db.ForeignKey('resume.id'), nullable=False)
+    custom_item_id = db.Column(db.Integer, db.ForeignKey('custom_item.id'), nullable=False)
+    order = db.Column(db.Integer, default=0)
+    custom_item = db.relationship("CustomItem", lazy="joined")
