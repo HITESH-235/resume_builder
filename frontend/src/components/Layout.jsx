@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { Link, Outlet, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
 import './Layout.css';
@@ -8,12 +8,15 @@ const Layout = () => {
   const { user, logout } = useContext(AuthContext);
   const { theme, toggleTheme } = useContext(ThemeContext);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     // Clears the session and redirects to login
     logout();
     navigate('/login');
   };
+
+  const isBuilder = location.pathname.includes('/edit');
 
   return (
     <div className="layout">
@@ -57,7 +60,7 @@ const Layout = () => {
           </nav>
         </div>
       </header>
-      <main className="container main-content animate-fade-in">
+      <main className={`main-content ${isBuilder ? 'builder-mode' : 'container'}`}>
         <Outlet />
       </main>
     </div>

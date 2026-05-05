@@ -33,6 +33,7 @@
   --radius-full: 9999px;
 
   --font-sans: 'Barlow', system-ui, -apple-system, sans-serif;
+  --bg-preview-area: #f4f7fa;
 }
 
 [data-theme='dark'] {
@@ -61,6 +62,7 @@
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.6);
   --shadow-glow: 0 0 20px rgba(59, 130, 246, 0.2);
+  --bg-preview-area: #000000;
 }
 
 * {
@@ -242,14 +244,14 @@ input:focus, textarea:focus, select:focus {
 }
 
 .btn-danger {
-  background: rgba(220, 38, 38, 0.1);
-  color: #ef4444;
-  border: 1px solid rgba(220, 38, 38, 0.15);
+  background: var(--red-primary);
+  color: #ffffff !important;
+  border: none;
 }
 
 .btn-danger:hover {
-  background: rgba(220, 38, 38, 0.2);
-  color: #dc2626;
+  background: var(--red-hover);
+  color: #ffffff !important;
 }
 
 .btn-small {
