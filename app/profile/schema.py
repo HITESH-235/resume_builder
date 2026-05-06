@@ -82,9 +82,10 @@ class EducationUpdateSchema(Schema):
 
 # ------------------------------------------------------------------------------------
 class ProjectSchema(Schema):
-    title = fields.Str(required=True, validate=validate.Length(min=1))
-    description = fields.Str(required=False)
-    link = fields.Str(required=False)
+    name = fields.Str(required=True, validate=validate.Length(min=1))
+    role = fields.Str(required=False, allow_none=True)
+    description = fields.Str(required=False, allow_none=True)
+    link = fields.Str(required=False, allow_none=True)
     start_date = fields.Date(required=True)
     end_date = fields.Date(allow_none=True)
 
@@ -100,6 +101,7 @@ class ProjectSchema(Schema):
 class CertificationSchema(Schema):
     name = fields.Str(required=True, validate=validate.Length(min=1))
     issuer = fields.Str(required=True, validate=validate.Length(min=1))
+    url = fields.Str(required=False, allow_none=True)
     date = fields.Date(required=True)
 
 

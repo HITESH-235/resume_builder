@@ -57,10 +57,11 @@ class ProfileController:
         data = request.get_json()
         if not data: return jsonify({"error":"Invalid JSON"}), 400
 
-        errors = ExperienceSchema().validate(data) # from schema with marshmallow used
+        errors = ExperienceSchema().validate(data)
         if errors: return jsonify({"status":"error", "errors":errors}), 400
 
-        response, status = ProfileService.add_experience(user_id, data)
+        clean = ExperienceSchema().load(data)
+        response, status = ProfileService.add_experience(user_id, clean)
         return jsonify(response), status
 
     @staticmethod
@@ -99,7 +100,8 @@ class ProfileController:
         errors = EducationSchema().validate(data)
         if errors: return jsonify({"status":"error", "errors":errors}), 400
 
-        response, status = ProfileService.add_education(user_id, data)
+        clean = EducationSchema().load(data)
+        response, status = ProfileService.add_education(user_id, clean)
         return jsonify(response), status
 
     @staticmethod

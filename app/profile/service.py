@@ -182,30 +182,22 @@ class ProfileService:
 
     @staticmethod
     def add_experience(user_id, data):
-
-        # fetch current profiles
         user = User.query.get(user_id)
         if not user or not user.profile: return {"error":"Profile not found"}, 404
-
-        try: # schemas checks date but format could still be different
-            start_date = datetime.strptime(data["start_date"], '%Y-%m-%d').date()
-            end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date() if data.get('end_date') else None
-        except ValueError:
-            return {"error":"Invalid date format (YYYY-MM-DD)"}, 400
 
         new_exp = Experience(
             profile_id = user.profile.id,
             company = data["company"],
             role = data["role"],
-            start_date = start_date,
-            end_date = end_date
+            start_date = data["start_date"],
+            end_date = data.get("end_date")
         )
 
         db.session.add(new_exp)
         try:
             db.session.commit()
         except Exception:
-            db.session.rollback() # undo the current transaction
+            db.session.rollback()
             return {"error": "Database error"}, 500
         return {"message":"Experience added successfully"}, 201
 
@@ -299,23 +291,16 @@ class ProfileService:
 
     @staticmethod
     def add_education(user_id, data):
-
         user = User.query.get(user_id)
         if not user or not user.profile: return {"error":"Profile not found"}, 404
-
-        try:
-            start_date = datetime.strptime(data["start_date"], '%Y-%m-%d').date()
-            end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date() if data.get('end_date') else None
-        except ValueError:
-            return {"error":"Invalid date format (YYYY-MM-DD)"}, 400
 
         new_edu = Education(
             profile_id = user.profile.id,
             institution = data["institution"],
             degree = data["degree"],
             description = data.get("description"),
-            start_date = start_date,
-            end_date = end_date
+            start_date = data["start_date"],
+            end_date = data.get("end_date")
         )
 
         db.session.add(new_edu)
@@ -428,7 +413,17 @@ class ProfileService:
         user = User.query.get(user_id)
         if not user or not user.profile: return {"error":"Profile not found"}, 404
         items = Project.query.filter_by(profile_id=user.profile.id).all()
-        return {"projects": [{c.name: getattr(item, c.name) for c in item.__table__.columns if c.name != 'profile_id'} for item in items]}, 200
+        return {"projects": [
+            {
+                "id": item.id,
+                "name": item.name,
+                "role": item.role,
+                "description": item.description,
+                "link": item.link,
+                "start_date": item.start_date.strftime('%Y-%m-%d') if item.start_date else None,
+                "end_date": item.end_date.strftime('%Y-%m-%d') if item.end_date else None
+            } for item in items
+        ]}, 200
 
 
     @staticmethod
@@ -475,7 +470,15 @@ class ProfileService:
         user = User.query.get(user_id)
         if not user or not user.profile: return {"error":"Profile not found"}, 404
         items = Certification.query.filter_by(profile_id=user.profile.id).all()
-        return {"certifications": [{c.name: getattr(item, c.name) for c in item.__table__.columns if c.name != 'profile_id'} for item in items]}, 200
+        return {"certifications": [
+            {
+                "id": item.id,
+                "name": item.name,
+                "issuer": item.issuer,
+                "url": item.url,
+                "date": item.date.strftime('%Y-%m-%d') if item.date else None
+            } for item in items
+        ]}, 200
 
 
     @staticmethod
@@ -522,7 +525,14 @@ class ProfileService:
         user = User.query.get(user_id)
         if not user or not user.profile: return {"error":"Profile not found"}, 404
         items = Course.query.filter_by(profile_id=user.profile.id).all()
-        return {"courses": [{c.name: getattr(item, c.name) for c in item.__table__.columns if c.name != 'profile_id'} for item in items]}, 200
+        return {"courses": [
+            {
+                "id": item.id,
+                "name": item.name,
+                "institution": item.institution,
+                "date": item.date.strftime('%Y-%m-%d') if item.date else None
+            } for item in items
+        ]}, 200
 
 
     @staticmethod
@@ -569,7 +579,14 @@ class ProfileService:
         user = User.query.get(user_id)
         if not user or not user.profile: return {"error":"Profile not found"}, 404
         items = Achievement.query.filter_by(profile_id=user.profile.id).all()
-        return {"achievements": [{c.name: getattr(item, c.name) for c in item.__table__.columns if c.name != 'profile_id'} for item in items]}, 200
+        return {"achievements": [
+            {
+                "id": item.id,
+                "title": item.title,
+                "description": item.description,
+                "date": item.date.strftime('%Y-%m-%d') if item.date else None
+            } for item in items
+        ]}, 200
 
 
     @staticmethod
