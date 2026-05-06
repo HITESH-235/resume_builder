@@ -209,11 +209,15 @@ const Profile = () => {
   const handleAddCustomItem = async (e) => {
     e.preventDefault();
     try {
-      if (newCustomItem.end_date && new Date(newCustomItem.start_date) > new Date(newCustomItem.end_date)) {
+      const itemData = { ...newCustomItem };
+      if (!itemData.start_date) itemData.start_date = null;
+      if (!itemData.end_date) itemData.end_date = null;
+
+      if (itemData.end_date && itemData.start_date && new Date(itemData.start_date) > new Date(itemData.end_date)) {
         alert("Start date cannot be after the end date.");
         return;
       }
-      await api.post('/profile/custom-item', newCustomItem);
+      await api.post('/profile/custom-item', itemData);
       setNewCustomItem({ title: '', subtitle: '', start_date: '', end_date: '', description: '' });
       fetchData();
     } catch (err) { console.error(err); }
@@ -245,20 +249,20 @@ const Profile = () => {
           <h2>Personal Information</h2>
           <form onSubmit={handleUpdateProfile} className="personal-info-form">
             <div className="info-inputs">              <div className="input-group">
-                <label>Full Name</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. Hitesh Sinha" 
-                  value={personalInfo.full_name} 
-                  onChange={e => setPersonalInfo({ ...personalInfo, full_name: e.target.value })} 
-                />
-              </div>
+              <label>Full Name</label>
+              <input
+                type="text"
+                placeholder="e.g. Hitesh Sinha"
+                value={personalInfo.full_name}
+                onChange={e => setPersonalInfo({ ...personalInfo, full_name: e.target.value })}
+              />
+            </div>
               <div className="input-group">
                 <label>Professional Bio</label>
-                <textarea 
-                  placeholder="Tell us about yourself..." 
-                  value={personalInfo.bio} 
-                  onChange={e => setPersonalInfo({ ...personalInfo, bio: e.target.value })} 
+                <textarea
+                  placeholder="Tell us about yourself..."
+                  value={personalInfo.bio}
+                  onChange={e => setPersonalInfo({ ...personalInfo, bio: e.target.value })}
                   rows={3}
                 />
               </div>
@@ -459,12 +463,12 @@ const Profile = () => {
         <div className="glass-panel profile-card profile-card-full card-custom">
           <h2>Custom Item Sections (Volunteer, Hobbies, etc.)</h2>
           <div className="profile-form-area">
-            <p className="section-hint" style={{marginBottom: '1.25rem'}}>Each unique <strong>Title</strong> will create a new section/table on your resume.</p>
+            <p className="section-hint" style={{ marginBottom: '1.25rem' }}>Each unique <strong>Title</strong> will create a new section/table on your resume.</p>
             <form onSubmit={handleAddCustomItem} className="vertical-form">
               <div className="date-group">
-                <div style={{flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
-                  <select 
-                    value={selectedTitle} 
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <select
+                    value={selectedTitle}
                     onChange={e => {
                       const val = e.target.value;
                       setSelectedTitle(val);
@@ -484,12 +488,12 @@ const Profile = () => {
                     <option value="new">+ Add New Category...</option>
                   </select>
                   {showNewTitleInput && (
-                    <input 
-                      type="text" 
-                      placeholder="Category Name (e.g. Volunteer Work)" 
-                      value={newCustomItem.title} 
-                      onChange={e => setNewCustomItem({ ...newCustomItem, title: e.target.value })} 
-                      required 
+                    <input
+                      type="text"
+                      placeholder="Category Name (e.g. Volunteer Work)"
+                      value={newCustomItem.title}
+                      onChange={e => setNewCustomItem({ ...newCustomItem, title: e.target.value })}
+                      required
                       autoFocus
                     />
                   )}
@@ -521,7 +525,7 @@ const Profile = () => {
                       </div>
                       {(item.start_date || item.end_date) && (
                         <div className="exp-dates text-red">
-                          {item.start_date ? new Date(item.start_date).toLocaleDateString() : ''} 
+                          {item.start_date ? new Date(item.start_date).toLocaleDateString() : ''}
                           {item.start_date && item.end_date ? ' – ' : ''}
                           {item.end_date ? new Date(item.end_date).toLocaleDateString() : ''}
                         </div>
