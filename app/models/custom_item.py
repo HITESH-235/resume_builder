@@ -7,7 +7,8 @@ class CustomItem(db.Model):
     profile_id = db.Column(db.Integer, db.ForeignKey("profile.id"), nullable=False)
     
     title = db.Column(db.String(100), nullable=False)
-    subtitle = db.Column(db.String(100), nullable=True)
+    subtitle = db.Column(db.String(100), nullable=False)
+    link = db.Column(db.String(255), nullable=True)
 
     start_date = db.Column(db.Date, nullable=True)
     end_date = db.Column(db.Date, nullable=True)
@@ -15,4 +16,5 @@ class CustomItem(db.Model):
     description = db.Column(db.Text, nullable=True)
     order = db.Column(db.Integer, default=0)
 
-    # profile relationship is handled in profile.py or here
+    def __init__(self, **kwargs):
+        super(CustomItem, self).__init__(**kwargs)

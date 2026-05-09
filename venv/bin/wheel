@@ -1,4 +1,4 @@
-#!/home/hit235/Projects/resume_builder/venv/bin/python3
+#!/home/hit235/Projects/resume_builder/venv/bin/python
 import sys
 from wheel._commands import main
 if __name__ == '__main__':

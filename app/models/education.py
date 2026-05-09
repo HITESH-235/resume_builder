@@ -12,3 +12,6 @@ class Education(db.Model):
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=True) # null for current study
     description = db.Column(db.Text, nullable=True)
+
+    def __init__(self, **kwargs):
+        super(Education, self).__init__(**kwargs)

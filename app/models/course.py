@@ -8,3 +8,6 @@ class Course(db.Model):
     institution = db.Column(db.String(150), nullable=False)
 
     date = db.Column(db.Date, nullable=False)
+
+    def __init__(self, **kwargs):
+        super(Course, self).__init__(**kwargs)

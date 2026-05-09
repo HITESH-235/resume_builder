@@ -9,3 +9,6 @@ class Certification(db.Model):
     url = db.Column(db.String(255), nullable=True)
 
     date = db.Column(db.Date, nullable=False)
+
+    def __init__(self, **kwargs):
+        super(Certification, self).__init__(**kwargs)

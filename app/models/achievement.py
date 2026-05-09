@@ -8,3 +8,6 @@ class Achievement(db.Model):
     description = db.Column(db.Text, nullable=True)
 
     date = db.Column(db.Date, nullable=False)
+
+    def __init__(self, **kwargs): # contructor to make it easier to create objects
+        super(Achievement, self).__init__(**kwargs) # (kwargs processes simple inputs to dictionary and passes to super class)

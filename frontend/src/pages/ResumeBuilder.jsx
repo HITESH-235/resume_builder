@@ -15,7 +15,8 @@ import {
   ChevronUp,
   Columns,
   Globe,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Paperclip
 } from 'lucide-react';
 import api from '../api/axios';
 import './ResumeBuilder.css';
@@ -364,10 +365,10 @@ const ResumeBuilder = () => {
     setIsPrinting(true);
     setTimeout(() => {
       const opt = {
-        margin: 10,
+        margin: [20, 0, 20, 0],
         filename: `${name || 'Resume'}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
+        html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
       html2pdf().from(element).set(opt).save().then(() => setIsPrinting(false));
@@ -408,10 +409,26 @@ const ResumeBuilder = () => {
                         </>
                       )}
                     </h4>
+                {(item.start_date || item.end_date) && (
+                  <div className="date-text" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span>{formatDate(item.start_date)} {item.start_date && !item.end_date ? '- Present' : (item.end_date ? `- ${formatDate(item.end_date)}` : '')}</span>
+                    {item.link && (
+                      <a href={item.link.startsWith('http') ? item.link : `https://${item.link}`} target="_blank" rel="noopener noreferrer" className="resume-item-link">
+                        <Paperclip size={10} style={{ marginRight: '2px' }} /> link
+                      </a>
+                    )}
                   </div>
-                </div>
-                {(item.start_date || item.end_date) && <div className="date-text">{formatDate(item.start_date)} - {formatDate(item.end_date)}</div>}
+                )}
+                {!item.start_date && !item.end_date && item.link && (
+                  <div className="date-text">
+                    <a href={item.link.startsWith('http') ? item.link : `https://${item.link}`} target="_blank" rel="noopener noreferrer" className="resume-item-link">
+                      <Paperclip size={10} style={{ marginRight: '2px' }} /> link
+                    </a>
+                  </div>
+                )}
                 {item.description && <p>{item.description}</p>}
+                </div>
+                </div>
               </div>
             );
           })}
@@ -435,14 +452,18 @@ const ResumeBuilder = () => {
               )}
             </div>
             <div className="summary-wrapper" data-replicated-value={summary}>
-              <textarea 
-                className="resume-summary-input" 
-                value={summary} 
-                onChange={e => setSummary(e.target.value)} 
-                onBlur={handleUpdateMetadata} 
-                rows={1}
-                placeholder="Write your professional summary here..."
-              />
+              {isPrinting ? (
+                <div className="resume-summary-display">{summary}</div>
+              ) : (
+                <textarea 
+                  className="resume-summary-input" 
+                  value={summary} 
+                  onChange={e => setSummary(e.target.value)} 
+                  onBlur={handleUpdateMetadata} 
+                  rows={1}
+                  placeholder="Write your professional summary here..."
+                />
+              )}
             </div>
           </div>
         );
@@ -482,9 +503,16 @@ const ResumeBuilder = () => {
                         )}
                       </h4>
                     </div>
+                  <div className="date-text" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span>{formatDate(item.start_date || item.date)} {item.end_date ? `- ${formatDate(item.end_date)}` : ''}</span>
+                    {(item.link || item.url) && (
+                      <a href={(item.link || item.url).startsWith('http') ? (item.link || item.url) : `https://${item.link || item.url}`} target="_blank" rel="noopener noreferrer" className="resume-item-link">
+                        <Paperclip size={10} style={{ marginRight: '2px' }} /> link
+                      </a>
+                    )}
                   </div>
-                  <div className="date-text">{formatDate(item.start_date || item.date)} {item.end_date ? `- ${formatDate(item.end_date)}` : ''}</div>
                   {item.description && <p>{item.description}</p>}
+                  </div>
                 </div>
               );
             })}
@@ -730,7 +758,11 @@ const ResumeBuilder = () => {
         <div className="builder-main">
           <div className={`resume-preview ${isPrinting ? 'is-printing' : ''}`} ref={printRef}>
             <div className="resume-header">
-              <input className="resume-title-input" value={title} onChange={e => setTitle(e.target.value)} onBlur={handleUpdateMetadata} />
+              {isPrinting ? (
+                <div className="resume-title-input" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{title}</div>
+              ) : (
+                <input className="resume-title-input" value={title} onChange={e => setTitle(e.target.value)} onBlur={handleUpdateMetadata} />
+              )}
               {designation && <div className="resume-designation-display">{designation}</div>}
               <div className="resume-contact-row">
                 {email && <span className="resume-contact-display"><Mail size={12} /> {email}</span>}

@@ -6,3 +6,6 @@ class JobDescription(db.Model):
 
     title = db.Column(db.String(200), nullable=False)
     content = db.Column(db.Text, nullable=False)
+
+    def __init__(self, **kwargs):
+        super(JobDescription, self).__init__(**kwargs)

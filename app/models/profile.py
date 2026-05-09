@@ -27,3 +27,6 @@ class Profile(db.Model):
     courses = db.relationship("Course", backref="profile", cascade="all, delete-orphan")
     achievements = db.relationship("Achievement", backref="profile", cascade="all, delete-orphan")
     custom_items = db.relationship("CustomItem", backref="profile", cascade="all, delete-orphan")
+
+    def __init__(self, **kwargs):
+        super(Profile, self).__init__(**kwargs)

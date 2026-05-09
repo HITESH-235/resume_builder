@@ -11,3 +11,6 @@ class Project(db.Model):
 
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=True)
+
+    def __init__(self, **kwargs):
+        super(Project, self).__init__(**kwargs)

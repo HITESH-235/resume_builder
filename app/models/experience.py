@@ -9,3 +9,6 @@ class Experience(db.Model):
 
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=True) # end date null for curr job
+
+    def __init__(self, **kwargs):
+        super(Experience, self).__init__(**kwargs)

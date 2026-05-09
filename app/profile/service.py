@@ -93,6 +93,7 @@ class ProfileService:
                         "id": item.id,
                         "title": item.title,
                         "subtitle": item.subtitle,
+                        "link": item.link,
                         "start_date": item.start_date.strftime('%Y-%m-%d') if item.start_date else None,
                         "end_date": item.end_date.strftime('%Y-%m-%d') if item.end_date else None,
                         "description": item.description,
@@ -244,10 +245,6 @@ class ProfileService:
 
         except ValueError:
             return {"error":"Invalid date format (YYYY-MM-DD)"}, 400
-
-        except ValueError:
-            return {"error":"Invalid date format (YYYY-MM-DD)"}, 400
-        
         # update the two finally:
         exp.start_date = new_start_date
         exp.end_date = new_end_date
@@ -260,7 +257,7 @@ class ProfileService:
             db.session.rollback() # undo the current transaction
             return {"error": "Database error"}, 500
 
-        return {"message":"Experience updated successfullly"}, 200
+        return {"message":"Experience updated successfully"}, 200
 
 
     @staticmethod
@@ -352,10 +349,6 @@ class ProfileService:
 
         except ValueError:
             return {"error":"Invalid date format (YYYY-MM-DD)"}, 400
-
-        except ValueError:
-            return {"error":"Invalid date format (YYYY-MM-DD)"}, 400
-        
         edu.start_date = new_start_date
         edu.end_date = new_end_date
         
@@ -625,12 +618,13 @@ class ProfileService:
         if not user or not user.profile: return {"error":"Profile not found"}, 404
         
         # Determine order
-        max_order = db.session.query(db.func.max(CustomItem.order)).filter_by(profile_id=user.profile.id).scalar() or 0
+        max_order = db.session.query(db.func.max(CustomItem.order)).filter(CustomItem.profile_id == user.profile.id).scalar() or 0
         
         item = CustomItem(
             profile_id=user.profile.id,
             title=data["title"],
-            subtitle=data.get("subtitle"),
+            subtitle=data["subtitle"],
+            link=data.get("link"),
             description=data.get("description"),
             start_date=datetime.strptime(data["start_date"], '%Y-%m-%d').date() if data.get("start_date") else None,
             end_date=datetime.strptime(data["end_date"], '%Y-%m-%d').date() if data.get("end_date") else None,
@@ -650,6 +644,7 @@ class ProfileService:
                 "id": item.id,
                 "title": item.title,
                 "subtitle": item.subtitle,
+                "link": item.link,
                 "start_date": item.start_date.strftime('%Y-%m-%d') if item.start_date else None,
                 "end_date": item.end_date.strftime('%Y-%m-%d') if item.end_date else None,
                 "description": item.description,
@@ -667,6 +662,7 @@ class ProfileService:
         
         if "title" in data: item.title = data["title"]
         if "subtitle" in data: item.subtitle = data["subtitle"]
+        if "link" in data: item.link = data["link"]
         if "description" in data: item.description = data["description"]
         if "order" in data: item.order = data["order"]
         
@@ -702,6 +698,9 @@ class ProfileService:
         item = CustomItem.query.filter_by(id=item_id, profile_id=user.profile.id).first()
         if not item: return {"error": "Item not found"}, 404
         
+        # Remove any resume associations first to avoid FK constraint violations
+        ResumeCustomItem.query.filter_by(custom_item_id=item_id).delete()
+
         db.session.delete(item)
         db.session.commit()
         return {"message": "Item deleted"}, 200

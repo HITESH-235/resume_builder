@@ -1,5 +1,5 @@
 {
-    "python.defaultInterpreterPath": "${workspaceFolder}/venv/bin/python",
+    "python.defaultInterpreterPath": "/home/hit235/Projects/resume_builder/venv/bin/python",
     "python.analysis.extraPaths": ["${workspaceFolder}"],
     "python.envs.defaultEnvManager": "ms-python.python:venv"
 }

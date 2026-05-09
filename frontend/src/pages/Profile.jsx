@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/axios';
+import { Paperclip } from 'lucide-react';
 import './Profile.css';
 
 const Profile = () => {
@@ -22,7 +23,7 @@ const Profile = () => {
   const [newCert, setNewCert] = useState({ name: '', issuer: '', url: '', date: '' });
   const [newCourse, setNewCourse] = useState({ name: '', institution: '', date: '' });
   const [newAchievement, setNewAchievement] = useState({ title: '', description: '', date: '' });
-  const [newCustomItem, setNewCustomItem] = useState({ title: '', subtitle: '', description: '', start_date: '', end_date: '' });
+  const [newCustomItem, setNewCustomItem] = useState({ title: '', subtitle: '', link: '', description: '', start_date: '', end_date: '' });
   const [showNewTitleInput, setShowNewTitleInput] = useState(false);
   const [selectedTitle, setSelectedTitle] = useState('');
 
@@ -218,7 +219,7 @@ const Profile = () => {
         return;
       }
       await api.post('/profile/custom-item', itemData);
-      setNewCustomItem({ title: '', subtitle: '', start_date: '', end_date: '', description: '' });
+      setNewCustomItem({ title: '', subtitle: '', link: '', start_date: '', end_date: '', description: '' });
       fetchData();
     } catch (err) { console.error(err); }
   };
@@ -391,7 +392,14 @@ const Profile = () => {
                     <h3>{c.name}</h3>
                     <button onClick={() => handleDeleteCert(c.id)} className="btn-danger btn-small">✕</button>
                   </div>
-                  <div className="exp-dates text-red">{c.issuer} · {new Date(c.date).toLocaleDateString()}</div>
+                  <div className="exp-dates text-red" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {c.issuer} · {new Date(c.date).toLocaleDateString()}
+                    {c.url && (
+                      <a href={c.url} target="_blank" rel="noreferrer" style={{ color: '#007bff', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: 'inherit' }}>
+                        <Paperclip size={12} /> link
+                      </a>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -452,8 +460,14 @@ const Profile = () => {
                     <h3>{p.name}{p.role && <span className="text-red" style={{ fontWeight: 'normal' }}> – {p.role}</span>}</h3>
                     <button onClick={() => handleDeleteProject(p.id)} className="btn-danger btn-small">✕</button>
                   </div>
-                  <div className="exp-dates text-red">{new Date(p.start_date).toLocaleDateString()} – {p.end_date ? new Date(p.end_date).toLocaleDateString() : 'Present'}</div>
-                  {p.link && <div style={{ fontSize: '0.74rem' }}><a href={p.link} target="_blank" rel="noreferrer">{p.link}</a></div>}
+                  <div className="exp-dates text-red" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {new Date(p.start_date).toLocaleDateString()} – {p.end_date ? new Date(p.end_date).toLocaleDateString() : 'Present'}
+                    {p.link && (
+                      <a href={p.link} target="_blank" rel="noreferrer" style={{ color: '#007bff', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: 'inherit' }}>
+                        <Paperclip size={12} /> link
+                      </a>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -498,7 +512,8 @@ const Profile = () => {
                     />
                   )}
                 </div>
-                <input type="text" placeholder="Entry Subtitle (e.g. Org Name)" value={newCustomItem.subtitle} onChange={e => setNewCustomItem({ ...newCustomItem, subtitle: e.target.value })} />
+                <input type="text" placeholder="Entry Subtitle (e.g. Org Name)" value={newCustomItem.subtitle} onChange={e => setNewCustomItem({ ...newCustomItem, subtitle: e.target.value })} required />
+                <input type="url" placeholder="Link (Optional)" value={newCustomItem.link} onChange={e => setNewCustomItem({ ...newCustomItem, link: e.target.value })} />
               </div>
               <div className="date-group">
                 <input type="date" value={newCustomItem.start_date} onChange={e => setNewCustomItem({ ...newCustomItem, start_date: e.target.value })} />
@@ -524,11 +539,24 @@ const Profile = () => {
                         <button onClick={() => handleDeleteCustomItem(item.id)} className="btn-danger btn-small">✕</button>
                       </div>
                       {(item.start_date || item.end_date) && (
-                        <div className="exp-dates text-red">
-                          {item.start_date ? new Date(item.start_date).toLocaleDateString() : ''}
-                          {item.start_date && item.end_date ? ' – ' : ''}
-                          {item.end_date ? new Date(item.end_date).toLocaleDateString() : ''}
+                        <div className="exp-dates text-red" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span>
+                            {item.start_date ? new Date(item.start_date).toLocaleDateString() : ''}
+                            {item.start_date && !item.end_date ? ' – Present' : (item.end_date ? ` – ${new Date(item.end_date).toLocaleDateString()}` : '')}
+                          </span>
+                          {item.link && (
+                            <a href={item.link} target="_blank" rel="noreferrer" style={{ color: '#007bff', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: 'inherit' }}>
+                              <Paperclip size={12} /> link
+                            </a>
+                          )}
                         </div>
+                      )}
+                      {!item.start_date && !item.end_date && item.link && (
+                         <div className="exp-dates text-red">
+                            <a href={item.link} target="_blank" rel="noreferrer" style={{ color: '#007bff', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: 'inherit' }}>
+                              <Paperclip size={12} /> link
+                            </a>
+                         </div>
                       )}
                       {item.description && <p style={{ margin: '0.25rem 0 0', fontSize: '0.78rem', color: '#555' }}>{item.description}</p>}
                     </div>

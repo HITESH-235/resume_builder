@@ -122,7 +122,8 @@ class AchievementSchema(Schema):
 # ------------------------------------------------------------------------------------
 class CustomItemSchema(Schema):
     title = fields.Str(required=True, validate=validate.Length(min=1))
-    subtitle = fields.Str(allow_none=True)
+    subtitle = fields.Str(required=True, validate=validate.Length(min=1))
+    link = fields.Str(allow_none=True)
     start_date = fields.Date(allow_none=True)
     end_date = fields.Date(allow_none=True)
     description = fields.Str(allow_none=True)
@@ -139,7 +140,8 @@ class CustomItemSchema(Schema):
 
 class CustomItemUpdateSchema(Schema):
     title = fields.Str(required=False, validate=validate.Length(min=1))
-    subtitle = fields.Str(required=False, allow_none=True)
+    subtitle = fields.Str(required=False, validate=validate.Length(min=1))
+    link = fields.Str(required=False, allow_none=True)
     start_date = fields.Date(required=False, allow_none=True)
     end_date = fields.Date(required=False, allow_none=True)
     description = fields.Str(required=False, allow_none=True)
